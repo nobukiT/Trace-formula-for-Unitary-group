@@ -1,41 +1,6 @@
 load("Lfunc.sage")
 load("orb_int_common.sage")
-
-
-# ========================================================================
-def inverse_root_polynomial(f):
-    """
-    Return x^d * f(1/x), monic.
-    """
-    R = f.parent()
-    x = R.gen()
-    d = f.degree()
-    return (x**d * f(x**(-1))).expand().monic()
-
-
-def factor_dict(poly):
-    return {g.monic(): e for g, e in poly.factor()}
-
-
-def is_elliptic(m, K):
-    """
-    Return True iff Phi_m(x), viewed over K[x], has NO GL-type obstruction.
-    That is: every irreducible factor f of Phi_m over K is paired with
-    inverse_root_polynomial(f) with the same multiplicity.
-    Since Phi_m is squarefree, this means:
-      for every irreducible factor f, inverse_root_polynomial(f) is also
-      a factor of Phi_m over K.
-    This is the correct criterion for "Phi_m contributes no GL-type factor".
-    """
-    R.<x> = PolynomialRing(K)
-    phi = R(cyclotomic_polynomial(m))
-    fac = factor_dict(phi)
-
-    for f in fac:
-        finv = inverse_root_polynomial(f)
-        if finv not in fac:
-            return False
-    return True
+load("utils.sage")
 
 def append_poss_local_invs_unitary(poss_local_invs, p, sub_cc, database, D_K, verbose=False):
     """
@@ -98,7 +63,7 @@ def append_poss_local_invs_unitary(poss_local_invs, p, sub_cc, database, D_K, ve
     return True
 
 # ========================================================================
-# 3. Calculation of mass
+# Calculation of mass
 # ========================================================================
 def mass_global_term_unitary(cc, D_K, prec=100, verbose=False):
     """
@@ -198,22 +163,90 @@ def mass_unitary(n, primes_list, negdim_goal, cc, database, D_K, prec=100, verbo
 
     global_factor = mass_global_term_unitary(cc, D_K, prec=prec, verbose=verbose)
     return mass * global_factor
+
 # ========================================================================
-# 4. main function
+# main function
 # ========================================================================
-def mass_list_unitary(n, primes_list, database, D_K, imposed_negdim=-1):
-    classes = conjclasses_unitary(n, primes_list)
+def mass_list_unitary(n, primes_list, database, D_K, imposed_negdim=-1, prec=100, verbose=False):
+    """
+    Enumerate stable conjugacy classes of finite-order elliptic semisimple elements
+    in U(p,q) (with p+q = n in the current normalization), and compute the mass
+    attached to each class.
+
+    INPUT:
+        n               -- integer; we are working with total E-dimension n
+        primes_list     -- list of primes used for local ramification / database lookup
+        database        -- precomputed local invariant database
+        D_K             -- discriminant parameter for E = Q(sqrt(D_K))
+        imposed_negdim  -- target q for the original U(p,q)
+                           if -1, default to q = n/2 (i.e. U(n/2,n/2))
+        prec            -- precision for global L-values
+        verbose         -- print detailed debugging information
+
+    OUTPUT:
+        list of pairs
+            [conj_class, mass]
+        where
+            conj_class = [[m1,a1],[m2,a2],...]
+        means characteristic polynomial
+            prod_i Phi_{m_i}(x)^{a_i}
+        and 'mass' is the total contribution from that stable class.
+    """
+
+    # ------------------------------------------------------------
+    # Enumerate all admissible elliptic characteristic polynomials
+    # of total Q-dimension n.
+    # ------------------------------------------------------------
+    classes = conjclasses_unitary_elliptic(n, primes_list)
+
+    # ------------------------------------------------------------
+    # Choose the target negative dimension q of the original U(p,q).
+    # Default: q = n/2.
+    # ------------------------------------------------------------
     negdim_goal = n if imposed_negdim == -1 else imposed_negdim
-    
+
+    if negdim_goal < 0 or negdim_goal > n:
+        raise ValueError(f"imposed_negdim must satisfy 0 <= q <= {n}, got {negdim_goal}")
+
     mass_list = []
-    print(f"Starting calculation for U({n},{n}) with D_K = {D_K}")
-    
+
+    print("=" * 80)
+    print(f"Starting mass computation for unitary group with total size {n}")
+    print(f"Quadratic field parameter D_K = {D_K}")
+    print(f"Target signature parameter q = {negdim_goal}")
+    print(f"Number of candidate stable classes = {len(classes)}")
+    print("=" * 80)
+
+    # ------------------------------------------------------------
+    # 3. Loop over all admissible stable conjugacy classes.
+    #    Each conj_class is a list [[m1,a1],[m2,a2],...]
+    #    corresponding to charpoly prod Phi_m(x)^a.
+    # ------------------------------------------------------------
     for conj_class in classes:
-        cc_mass = mass_unitary(n, primes_list, negdim_goal, conj_class, database, D_K)
-        
+        if verbose:
+            print("-" * 80)
+            print(f"Processing class: {conj_class}")
+
+        cc_mass = mass_unitary(
+            n=n,
+            primes_list=primes_list,
+            negdim_goal=negdim_goal,
+            cc=conj_class,
+            database=database,
+            D_K=D_K,
+            prec=prec,
+            verbose=verbose
+        )
+
+        # Keep only nonzero-mass classes
         if cc_mass != 0:
             mass_list.append([conj_class, cc_mass])
             print(f"{conj_class} -> Mass: {cc_mass}")
-            
-    print(f"Found {len(mass_list)} conjugacy classes with non-zero mass.")
+        elif verbose:
+            print(f"{conj_class} -> Mass 0 (discarded)")
+
+    print("=" * 80)
+    print(f"Found {len(mass_list)} stable conjugacy classes with non-zero mass.")
+    print("=" * 80)
+
     return mass_list
