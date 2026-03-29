@@ -23,8 +23,8 @@ if first_run:
 
 def enum_with_inv_hermi(p, m, mult, maxpower, D_K, alg_data):
     """一般化された引数を用いてエルミート格子を列挙する。"""
-    # 前述の一般化された enumhermi を呼び出し
-    Lattices = enumhermi(
+    # 前述の一般化された enum_hermi を呼び出し
+    Lattices = enum_hermi(
         alg_data['q'], p, alg_data['unif'], alg_data['E'], alg_data['OE'], 
         alg_data['residue_field'], alg_data['conj'], alg_data['val_func'], 
         alg_data['trace_func'], alg_data['basis'], alg_data['d'], alg_data['e'], 
@@ -221,7 +221,7 @@ def update_orb_int_unitary_db(n, primes_list, D_K, pretend=False, verbose=True):
                     )
 
                 partition_options_per_block.append(list(hermi_latt_db[hermi_key].keys()))
-                
+
             for partition_combination in itertools.product(*partition_options_per_block):
                 calculation_args = [(p, cyclo_order, jordan_blocks, partition_combination)]
 

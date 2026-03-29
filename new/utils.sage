@@ -8,12 +8,14 @@ def block_fields_unitary(m, D_K, verbose=False):
             "cyclo"      : Q(zeta_m)
             "Ei"         : E(zeta_m)
             "Fi"         : maximal totally real subfield (when Ei is CM)
+            "embed_F_to_E": embedding from Fi to Ei
             "split"      : whether Ei is not a field-CM block in the expected sense
             "deg_Ei"     : [Ei:Q]
             "deg_Fi"     : [Fi:Q]
     """
-    QQx.<x> = QQ[]
-    E0.<w> = QuadraticField(D_K)
+    QQx = QQ['x']
+    x = QQx.gen()
+    E0 = QuadraticField(D_K, 'w')
 
     # m=1,2 are degenerate but still valid
     if m == 1:
@@ -31,8 +33,11 @@ def block_fields_unitary(m, D_K, verbose=False):
         "Ei": Ei,
         "deg_Ei": Ei.degree(),
     }
-    Fi = Ei.maximal_totally_real_subfield()[0]
+    
+    Fi, embed_F_to_E = Ei.maximal_totally_real_subfield()
+    
     out["Fi"] = Fi
+    out["embed_F_to_E"] = embed_F_to_E
     out["deg_Fi"] = Fi.degree()
     out["split"] = False
 
