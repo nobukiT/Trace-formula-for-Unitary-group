@@ -7,7 +7,6 @@ This project provides an end-to-end computational pipeline, including:
 - **local lattice classification**
 - **local density and orbital integral computation**
 - **global mass formula assembly**
-- **exact special value evaluation of relative \( L \)-functions**
 
 It is designed for arithmetic applications involving Hermitian lattices, quadratic forms, and automorphic mass computations.
 
@@ -31,7 +30,9 @@ In particular, the present codebase adapts and extends related ideas in the sett
 
 It also incorporates additional routines specific to Hermitian lattices and ramified local structures that do not appear in the split orthogonal/symplectic setting.
 
-If relevant, one may also compare with the tables and source code accompanying Taïbi’s paper.
+Related materials and source references may also be found on Olivier Taïbi’s webpage:
+
+- [Olivier Taïbi — personal webpage](https://otaibi.perso.math.cnrs.fr/)
 
 ---
 
@@ -86,21 +87,6 @@ If relevant, one may also compare with the tables and source code accompanying T
 
 ---
 
-## Requirements
-
-- **SageMath**  
-  Required for:
-  - algebraic number field computations
-  - matrix and lattice operations
-  - exact arithmetic
-
-- **PARI/GP**  
-  Used internally through SageMath for:
-  - exact special value calculations
-  - \( L \)-function and zeta-related computations
-
----
-
 ## Usage
 
 ## 1. Run the Integration Test
@@ -150,22 +136,22 @@ A standard computation typically proceeds as follows:
 6. **Extract the stable conjugacy class masses**
 
 ---
-
-## Mathematical Scope
-
-This codebase is intended for computations involving:
-
-- Hermitian lattices over local and global fields
-- Stable conjugacy classes of unitary groups
-- Local densities and orbital integrals
-- Quadratic form classification over \( p \)-adic rings
-- Exact arithmetic for special values of \( L \)-functions
-
----
-
 ## References
 
 1. **Olivier Taïbi**,  
    *Dimensions of spaces of level one automorphic forms for split classical groups using the trace formula*,  
    *Ann. Sci. Éc. Norm. Supér.* **50** (2017), no. 2, 269–344.  
    DOI: [10.24033/asens.2323](https://doi.org/10.24033/asens.2323)
+
+2. **Wee Teck Gan and Jiu-Kang Yu**,  
+   *Group schemes and local densities*,  
+   *Duke Mathematical Journal* **105** (2000), no. 3, 497–524.
+
+3. **Sungmun Cho**,  
+   *Group schemes and local densities of quadratic lattices in residue characteristic 2*,  
+   *Compositio Mathematica* **151** (2015), no. 5, 793–827.  
+   DOI: [10.1112/S0010437X14007829](https://doi.org/10.1112/S0010437X14007829)
+
+4. **Sungmun Cho**,  
+   *Group schemes and local densities of ramified hermitian lattices in residue characteristic 2*,  
+   [arXiv:1210.7894](http://arxiv.org/abs/1210.7894)
