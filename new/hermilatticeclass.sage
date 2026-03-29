@@ -1,7 +1,7 @@
 load("hermi_density.sage")
 load("young.sage")
 
-def build_hermilattice_unr(q, p, unif, k, m2, d, e, dim, I, issplit, precomp_trace_matrices, 
+def build_hermilattice_unr(q, p, unif, k, m2, d, e, dim, I, precomp_trace_matrices, 
                            E, OE, residue_field, conj, val_func, t=None):
     """
     Computes the data and local volume of an unramified (or totally ramified) 
@@ -17,7 +17,6 @@ def build_hermilattice_unr(q, p, unif, k, m2, d, e, dim, I, issplit, precomp_tra
         e                      : int; Ramification index.
         dim                    : int; Total dimension of the lattice.
         I                      : list; Invariants specifying the Jordan decomposition [count0, count1, ...].
-        issplit                : bool; True if the prime splits in the extension.
         precomp_trace_matrices : list; Precomputed trace matrices for efficiency.
         E                      : Field; The extension field.
         OE                     : Ring; The ring of integers of the extension field E.
@@ -28,7 +27,7 @@ def build_hermilattice_unr(q, p, unif, k, m2, d, e, dim, I, issplit, precomp_tra
 
     OUTPUT:
         list: [disc_isnorm, lattice_obj]
-            - disc_isnorm (int): 0 if issplit is True. Otherwise, parity of the scaled discriminant valuation.
+            - disc_isnorm (int): Parity of the scaled discriminant valuation.
             - lattice_obj (hermilattice_unr): The constructed Hermitian lattice object.
     """
     diag_gram_mat = []
@@ -44,8 +43,7 @@ def build_hermilattice_unr(q, p, unif, k, m2, d, e, dim, I, issplit, precomp_tra
         gram_mat0 = block_diagonal_matrix(diag_gram_mat)
         
         # Call the generalized Jordan decomposition
-        newbasis, gram_mat, type_list = jordanhermi_generalized(
-            gram_mat0, issplit, E, OE, residue_field, unif, conj, val_func, t
+        newbasis, gram_mat, type_list = jordanhermi(
         )
         
         # Note: The companion matrix depends on a specific polynomial.
@@ -60,14 +58,8 @@ def build_hermilattice_unr(q, p, unif, k, m2, d, e, dim, I, issplit, precomp_tra
         gamma_mat = identity_matrix(dim)
         type_list = I
 
-    # 1. Calculate the denominator of the local density (local volume) using the generalized q
-    mass_local_term = hermi_unr_mass_local_term(q, dim, I, issplit)
-    
-    # 2. Avoid instantiating Mod() objects in loops to accelerate computation via pure integer arithmetic
-    if issplit:
-        disc_isnorm = 0
-    else:
-        disc_isnorm = sum((i - d) * count for i, count in enumerate(I)) % 2
+    mass_local_term = hermi_unr_mass_local_term(q, dim, I)
+    disc_isnorm = sum((i - d) * count for i, count in enumerate(I)) % 2
         
     # Instantiate the lattice class, passing the generalized q
     lattice_obj = hermilattice_unr(q, p, m2, dim * e, type_list, gram_mat, gamma_mat, mass_local_term)

@@ -110,6 +110,6 @@ def hermi_ram2_mass_local_term(Fi, Ei, embed_F_to_E, p_ideal, I):
 
     if mult % 2 == 0:
         mass_local_term *= q**(mult * d / 2)
-    mass_local_term /= calculate_local_density(Fi, Ei, embed_F_to_E, p_ideal, I)
+    mass_local_term /= calculate_local_density(Fi, Ei, embed_F_to_E, p_ideal, I, N=4)
     
     return mass_local_term

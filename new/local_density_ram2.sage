@@ -1,8 +1,3 @@
-import itertools
-from sage.matrix.special import block_diagonal_matrix
-from sage.matrix.constructor import matrix
-from sage.all import *
-
 def calculate_local_density(Fi, Ei, embed_F_to_E, p_ideal, I_local, N=2):
     """
     Fi : base field (here Q(sqrt(2)))
@@ -20,11 +15,6 @@ def calculate_local_density(Fi, Ei, embed_F_to_E, p_ideal, I_local, N=2):
     factored_primes = list(p_in_E.factor())
 
     ramified_primes = [(P, e) for (P, e) in factored_primes if e > 1]
-    
-    if len(ramified_primes) == 0:
-        raise ValueError("Prime p is unramified in Ei. Brute-force counting for ramified case cannot be used.")
-    if len(ramified_primes) > 1:
-        raise ValueError("Expected a unique ramified prime above p, but found multiple.")
 
     P_ideal = ramified_primes[0][0]
 
@@ -83,7 +73,10 @@ def calculate_local_density(Fi, Ei, embed_F_to_E, p_ideal, I_local, N=2):
             D = matrix(OE_mod, 1, 1, [scale_mod])
             blocks.extend([D] * n_i)
 
-    B_mat = block_diagonal_matrix(blocks) 
+    B_mat = block_diagonal_matrix(blocks)
+
+    print(f"--- Empirical Counting (N={N}) ---")
+    
     k, k_map = Ei.residue_field(P_ideal)
     k_reps = [Ei(k_map.section()(a)) for a in k]
     
@@ -93,6 +86,9 @@ def calculate_local_density(Fi, Ei, embed_F_to_E, p_ideal, I_local, N=2):
         ring_elements.append(OE_mod(val))
 
     total = len(ring_elements)**(n_dim**2)
+    print(f"|OE_mod| = {len(ring_elements)} (expected {q**max_power})")
+    print(f"Searching over {total} matrices...")
+
     valid_count = 0
     for matrix_entries in itertools.product(ring_elements, repeat=n_dim*n_dim):
         X = matrix(OE_mod, n_dim, n_dim, matrix_entries)

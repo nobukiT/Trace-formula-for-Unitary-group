@@ -1,7 +1,5 @@
 load("gl_density.sage")
 load("young.sage")
-load("gl_density.sage")
-load("young.sage")
 
 def build_gl_lattice(p, k, m2, d, e, dim, I, qv):
     """

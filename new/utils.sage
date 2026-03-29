@@ -59,7 +59,7 @@ def factor_dict(poly):
     return {g.monic(): e for g, e in poly.factor()}
 
 
-def is_elliptic(m, K):
+def is_elliptic(m, D_K):
     """
     Return True iff Phi_m(x), viewed over K[x], has NO GL-type obstruction.
     That is: every irreducible factor f of Phi_m over K is paired with
@@ -69,6 +69,7 @@ def is_elliptic(m, K):
       a factor of Phi_m over K.
     This is the correct criterion for "Phi_m contributes no GL-type factor".
     """
+    K = QuadraticField(D_K, 'w')
     R.<x> = PolynomialRing(K)
     phi = R(cyclotomic_polynomial(m))
     fac = factor_dict(phi)
@@ -110,7 +111,7 @@ def ppart(m, p):
 
 #============================================================================
 
-def conjclasses_unitary(n, primes_list, K, verbose=False):
+def conjclasses_unitary(n, primes_list, D_K, verbose=False):
     """
     Enumerate possible Q-characteristic polynomials prod Phi_m(x)^{a_m}
     for finite-order elliptic semisimple stable eigenvalue data
@@ -135,7 +136,7 @@ def conjclasses_unitary(n, primes_list, K, verbose=False):
         phi_m = totient(primes_list, exponents)
 
         if m > 0 and phi_m > 0:
-            if is_elliptic(m, K):
+            if is_elliptic(m, D_K):
                 degrees.append([m, phi_m])
                 if verbose:
                     print(f"allowed: m={m}, phi(m)={phi_m}")
