@@ -1,144 +1,84 @@
-# m>=3, m != 2 mod 4
-# F = QQ(eta_m), k>=1
-# computes zeta_F(1-2k)
-# note: m=3 and 4 yields the Riemann zeta function
-def zetarealcyclo(m, k):
-    """
-    Q(zeta_m) の最大実部分体のゼータ関数の負の偶数 (-2k+1) での特殊値に対応する因子。
-    偶数指標 (chi(-1) == 1) を持つディリクレ指標に対するベルヌーイ数の積を計算する。
-    """
-    G = DirichletGroup(m)
-    res = 1
-    for e in G:
-        if e(-1) == 1:
-            chi_prim = e.primitive_character()
-            # -B_{2k, chi} / 2k
-            res *= -chi_prim.bernoulli(2 * k) / (2 * k)
-    return QQ(res)
 
-def Lfuncquadcyclo(m, k):
-    """
-    Q(zeta_m) の相対 L-関数の負の奇数 (-2k) での特殊値に対応する因子。
-    奇数指標 (chi(-1) == -1) を持つディリクレ指標に対するベルヌーイ数の積を計算する。
-    """
-    G = DirichletGroup(m)
-    res = 1
-    for e in G:
-        if e(-1) == -1:
-            chi_prim = e.primitive_character()
-            # -B_{2k+1, chi} / (2k+1)
-            res *= -chi_prim.bernoulli(2 * k + 1) / (2 * k + 1)
-    return QQ(res)
+load("utils.sage")
 
-def zetarealcyclo_unitary(m, k, D_K):
+def relative_L_special_value(Ei, Fi, s, prec=1000, verbose=False):
     """
-    U(n,n) 用: 偶数次 (l が偶数) における L関数の特殊値因子。
-    chi_K^even = 1 なので、通常の zetarealcyclo と同じ（円分体の偶指標の積）。
+    Return L(E/F, 1-j) for odd j >= 1.
+    Evaluates the exact limit avoiding 0/0 by computing the d-th derivatives using PARI.
     """
-    G = DirichletGroup(m)
-    res = 1
-    for e in G:
-        if e(-1) == 1:
-            chi_prim = e.primitive_character()
-            res *= -chi_prim.bernoulli(2 * k) / (2 * k)
-    return QQ(res)
+    j = 1 - s
 
-def kronecker_dirichlet_character(D, M=None):
-    """
-    判別式 D に対応する Kronecker 指標 χ_D を
-    modulus M 上の Dirichlet character として返す。
+    if j % 2 == 0 or j < 1:
+        raise ValueError(f"j must be odd positive, got j={j}")
 
-    比較は gcd(n,M)=1 の n のみで行う。
-    """
-    N = abs(D)
-    if M is None:
-        M = N
-    if M % N != 0:
-        raise ValueError("Need abs(D) | M")
+    if j == 1:
+        return QQ(-Ei.class_number()) / QQ(Ei.number_of_roots_of_unity())
+
+    d = Fi.degree()
+
+    R = RealField(prec)
+    s_val = R(s)
+
+    if verbose:
+        print(f"Evaluating exact limit at s={s} using {d}-th derivatives.")
+        print(f"   prec = {prec} bits")
+
+    nf_E = Ei.pari_nf()
     
-    G = DirichletGroup(M, QQbar)
-    
-    for chi in G:
-        ok = True
-        for n in range(M):
-            if gcd(n, M) == 1:
-                if chi(n) != kronecker(D, n):
-                    ok = False
-                    break
-        if ok:
-            return chi
-    
-    raise ValueError(f"Kronecker character for D={D} not found modulo {M}")
+    if Fi == QQ:
+        val_E_deriv = pari.lfun(nf_E, s_val, d)
+        val_F_deriv = pari.lfun(1, s_val, d) 
+    else:
+        nf_F = Fi.pari_nf()
+        val_E_deriv = pari.lfun(nf_E, s_val, d)
+        val_F_deriv = pari.lfun(nf_F, s_val, d)
+
+    if val_F_deriv == 0:
+        raise ZeroDivisionError(f"d-th derivative of zeta_F is zero at s={s}")
+
+    approx_sage = R((val_E_deriv / val_F_deriv).real())
+    q = exactify_to_QQ(approx_sage)
+
+    if verbose:
+        print(f"   approx L(E/F,{s}) = {approx_sage}")
+        print(f"   recovered         = {q}")
+
+    return q
 
 
-def lift_character_to_modulus(chi, M):
+def unitary_block_L_product(block_size, Ei, Fi, prec=200, verbose=False):
     """
-    modulus m の Dirichlet character chi を
-    modulus M (m | M) に持ち上げる。
+    Compute
+
+        prod_{j=1}^{block_size} term_j
+
+    where
+        term_j = L(E/F, 1-j)   if j is odd,
+               = zeta_F(1-j)   if j is even.
+
+    Returns an exact rational whenever possible.
     """
-    m = chi.modulus()
-    if M % m != 0:
-        raise ValueError("Need modulus(chi) | M")
-    
-    G = DirichletGroup(M, QQbar)
-    
-    for psi in G:
-        ok = True
-        for a in range(M):
-            if gcd(a, M) == 1:
-                if psi(a) != chi(a % m):
-                    ok = False
-                    break
-        if ok:
-            return psi
-    
-    raise ValueError("Could not lift character")
+    ans = QQ(1)
+    zF = Fi.zeta_function()
 
+    for j in range(1, block_size + 1):
+        s = 1 - j
 
-def Lfuncquadcyclo_unitary(m, k, D_K):
-    """
-    U(n,n) 用: 奇数次の L関数特殊値因子
-    """
-    M = lcm(m, abs(D_K))
-    
-    G_m = DirichletGroup(m, QQbar)
-    chi_K = kronecker_dirichlet_character(D_K, M)
-    
-    res = 1
-    
-    for e in G_m:
-        e_lift = lift_character_to_modulus(e, M)
-        chi_twist = e_lift * chi_K
-        
-        if chi_twist(-1) == -1:
-            chi_prim = chi_twist.primitive_character()
-            res *= -chi_prim.bernoulli(2 * k + 1) / (2 * k + 1)
-    
-    return QQ(res)
+        if j % 2 == 0:
+            # even j -> trivial character
+            raw_term = zF(s)
+            term = exactify_to_QQ(raw_term)
 
-def card_unitary_group(p, m, dim):
-    f = 1
-    x = Mod(p, m)
-    while x != Mod(-1, m):
-        f += 1
-        x *= p
-        if x == Mod(1, m):
-            raise ValueError("Extension should be unramified; it is split!")
-    if f != euler_phi(m) // 2:
-        raise ValueError("Error in card_unitary_group: f is wrong.")
-    q = p**f
-    return q**(dim**2) * prod([(1 - (-q)**(-l)) for l in range(1, dim+1)])
+            if verbose:
+                print(f"j={j}, s={s}: zeta_F({s}) = {term}")
 
+        else:
+            # odd j -> relative quadratic character
+            term = relative_L_special_value(Ei, Fi, s, prec=prec, verbose=verbose)
 
-def card_general_linear_group(p, m, dim):
-    f = 1
-    x = Mod(p, m)
-    while x != Mod(1, m):
-        f += 1
-        x *= p
-        if x == Mod(-1, m):
-            raise ValueError("Extension should be split; it is unramified!")
-    if f != euler_phi(m) // 2:
-        raise ValueError("Error in card_general_linear_group: f is wrong.")
-    q = p**f
-    return q**(dim**2) * prod([1 - q**(-l) for l in range(1, dim+1)])
+            if verbose:
+                print(f"j={j}, s={s}: L(E/F, {s}) = {term}")
+
+        ans *= term
+
+    return QQ(ans)

@@ -1,13 +1,15 @@
 def young_list(M):
     """
-    べき零行列 M のジョルダン細胞のサイズ（ヤング図形）を計算する。
+    Calculate the size of Jordan blocks (Young diagram) for a nilpotent matrix M.
     
-    数学的背景:
-    L[k] = rank(M^k) - rank(M^{k+1}) は、ジョルダン標準形における
-    サイズが k+1 以上のブロックの個数に対応する（ヤング図形の「列」の長さ）。
+    INPUT:
+        M -- a square matrix (must be nilpotent)
+
+    OUTPUT:
+        List of integers representing the sizes of the Jordan blocks (a partition).
     """
     if not M.is_square():
-        raise ValueError("行列は正方行列である必要があります。")
+        raise ValueError("The matrix must be a square matrix.")
         
     total_dim = M.nrows()
     if total_dim == 0:
@@ -17,15 +19,15 @@ def young_list(M):
     current_nullity = total_dim - M.rank()  # dim(ker(M))
     prev_nullity = 0
     
-    # 行列の累乗を保持する変数
+    # Variable to keep track of the matrix powers
     M_pow = M
     
-    # 核の次元の増分がなくなるまでループ
+    # Loop until the dimension of the kernel stops increasing
     while current_nullity > prev_nullity:
-        # この増分がヤング図形の「列」の長さを構成する
+        # This increment forms the length of a "column" in the Young diagram
         partition.append(current_nullity - prev_nullity)
         
-        # 次の累乗の核の次元を計算
+        # Compute the nullity for the next power
         prev_nullity = current_nullity
         M_pow *= M
         current_nullity = total_dim - M_pow.rank()

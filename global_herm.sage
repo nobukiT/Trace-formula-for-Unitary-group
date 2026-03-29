@@ -1,186 +1,176 @@
 load("Lfunc.sage")
+load("utils.sage")
+import itertools
 
-# ========================================================================
-# 1. Helper functions
-# ========================================================================
-def prodexp(primes_list, exponents):
-    res = 1
-    for i in range(len(primes_list)):
-        res *= primes_list[i]**(exponents[i])
-    return res
+def append_poss_local_invs_unitary(poss_local_invs, p, sub_cc, orb_int_unitary_db, D_K, total_num_blocks):
+    """
+    Fetches all valid local invariant patterns and their densities from the database
+    for a given prime p and its local conjugacy class decomposition.
 
-def totient(primes_list, exponents):
-    res = 1
-    for i in range(len(primes_list)):
-        if exponents[i] > 0:
-            res *= (primes_list[i] - 1) * primes_list[i]**(exponents[i] - 1)
-    return res
+    INPUT:
+        poss_local_invs    : list; a list to which the local possibilities will be appended.
+        p                  : integer; the prime number.
+        sub_cc             : list; the output of tot_ram_sub_conj_classes_unitary(cc, p).
+        orb_int_unitary_db : dict; the precomputed local orbital integral database.
+        D_K                : integer; the discriminant of the quadratic field E = Q(sqrt(D_K)).
 
-def ppart(m, p):
-    k = 0
-    x = m
-    while x % p == 0:
-        x //= p
-        k += 1
-    return x, k
-
-# ========================================================================
-# 2. Generation of conjugate classes and organization of local data
-# ========================================================================
-def conjclasses_unitary(n, primes_list):
-    N = 2 * n
-    exponents = [0] * len(primes_list)
-    degrees = []
+    OUTPUT:
+        Returns True if all required local data exist in the DB and are appended.
+        Otherwise returns False (indicating mass 0 for this global class).
+        Format appended to poss_local_invs:
+            [ ((inv1), (inv2), ...), density ]
+            where (inv_i) is the local invariant (e.g., (rank, disc)) for each Jordan block.
+    """
+    p_local_options = []
     
-    while totient(primes_list, exponents) <= N:
-        m = prodexp(primes_list, exponents)
-        if m > 0:
-            degrees.append([m, totient(primes_list, exponents)])
-        exponents[0] += 1
-        j = 1
-        while j < len(primes_list) and totient(primes_list, exponents) > N:
-            exponents[j-1] = 0
-            exponents[j] += 1
-            j += 1
-            
-    degrees.sort(key=lambda x: x[0])
+    for cyclo_order, jordan_blocks, orig_indices in sub_cc:
+        key = (p, cyclo_order, tuple(jordan_blocks), D_K)
+        if key not in orb_int_unitary_db:
+            return False
+        
+        local_map = orb_int_unitary_db[key]
+        # Store (mapped_pattern, density)
+        # mapped_pattern is a dict {global_idx: local_inv}
+        options = []
+        for pattern, density in local_map.items():
+            mapped_pattern = {orig_indices[k]: pattern[k] for k in range(len(orig_indices))}
+            options.append((mapped_pattern, density))
+        p_local_options.append(options)
+
+    for combo in itertools.product(*p_local_options):
+        combined_pattern_dict = {}
+        combined_density = QQ(1)
+        for p_map, density in combo:
+            combined_pattern_dict.update(p_map)
+            combined_density *= density
+        
+        # Convert dict to a list ordered by global block index
+        ordered_pattern = [combined_pattern_dict[i] for i in range(total_num_blocks)]
+        poss_local_invs.append([ordered_pattern, combined_density])
     
-    def find_partitions(target_dim, idx):
-        if target_dim == 0: return [[]]
-        if idx >= len(degrees): return []
-        
-        m, deg = degrees[idx]
-        res = []
-        for mult in range(target_dim // deg + 1):
-            for rest in find_partitions(target_dim - mult * deg, idx + 1):
-                if mult > 0:
-                    res.append([[m, mult]] + rest)
-                else:
-                    res.append(rest)
-        return res
-
-    return find_partitions(N, 0)
-
-def tot_ram_sub_conj_classes_unitary(cc, p):
-    res_dict = {}
-    for i, x in enumerate(cc):
-        m, k = ppart(x[0], p)
-        mult = x[1]
-        if m in res_dict:
-            res_dict[m].append([k, mult, i])
-        else:
-            res_dict[m] = [[k, mult, i]]
-    res = []
-    for m, d in res_dict.items():
-        m_red = m // 2 if m % 4 == 2 else m
-        res.append([m_red, tuple((x[0], x[1]) for x in d), [x[2] for x in d]])
-    return res
-
-def append_poss_local_invs_unitary(poss_local_invs, p, sub_cc, database, D_K):
-    p_invs = []
-    sub_invs = []
-
-    for s in sub_cc:
-        m_red, dims_tup, indices = s
-        
-        db_key = (p, m_red, tuple(dims_tup), D_K)
-        
-        if db_key not in database:
-            print(f"Warning: Cache miss for {db_key}. This conjugate class drops to Mass 0.")
-            return False
-            
-        orb_dict = database[db_key]
-        curr_sub_invs = []
-        at_least_one = False
-        
-        for invs_tup, orb_int in orb_dict.items():
-            HW_list = [invs_tup[i] for i in range(len(indices))]
-            curr_sub_invs.append([HW_list, orb_int])
-            at_least_one = True
-            
-        if not at_least_one:
-            return False
-        sub_invs.append(curr_sub_invs)
-        
-    for L in itertools.product(*sub_invs):
-        HW_list_ordered = [None] * sum([len(s[1]) for s in sub_cc])
-        orb_int = 1
-        for i, s in enumerate(sub_cc):
-            sub_HW_list, sub_orb_int = L[i]
-            orb_int *= sub_orb_int
-            for j, ind in enumerate(s[2]):
-                HW_list_ordered[ind] = sub_HW_list[j]
-        p_invs.append([HW_list_ordered, orb_int])
-        
-    poss_local_invs.append(p_invs)
     return True
 
-# ========================================================================
-# 3. Calculation of mass
-# ========================================================================
-def mass_global_term_unitary(cc, D_K):
-    res = 1
+def mass_global_term_unitary(cc, D_K, prec=100, verbose=False):
+    """
+    Computes the product of global factors (Tamagawa number, L-values) for a unitary centralizer.
+
+    INPUT:
+        cc      : list; the stable conjugacy class [[m1, n1], [m2, n2], ...].
+        D_K     : integer; discriminant of the quadratic field E = Q(sqrt(D_K)).
+        prec    : integer; precision for L-value calculation.
+        verbose : boolean; print debug information.
+
+    OUTPUT:
+        The product of global constants and L-factors over all blocks.
+    """
+    CC = ComplexField(prec)
+    res = CC(1)
+
     for m, n in cc:
-        orig_m = m
-        if m % 4 == 2: 
-            m //= 2
+        data = block_fields_unitary(m, D_K, verbose)
+        Ei = data["Ei"]
+        Fi = data["Fi"]
+        
+        if Fi is None:
+            raise ValueError(f"Could not determine Fi for Phi_{m}-block.")
+
+        # Tamagawa number factor
         res *= 2
-        if n % 4 == 2:
-            res *= (-1)**(euler_phi(m) // 2)
-        for l in range(1, n + 1):
-            if l % 2 == 0:
-                res *= zetarealcyclo_unitary(m, l // 2, D_K)
-            else:
-                res *= Lfuncquadcyclo_unitary(m, (l - 1) // 2, D_K)
+
+        # L-factor calculation
+        res *= unitary_block_L_product(n, Ei, Fi, verbose)
+
     return res
 
-def mass_unitary(n, primes_list, negdim_goal, cc, database, D_K):
-    poss_local_invs = []
-    for p in primes_list:
-        sub_cc = tot_ram_sub_conj_classes_unitary(cc, p)
-        if not append_poss_local_invs_unitary(poss_local_invs, p, sub_cc, database, D_K):
-            return 0
-    mass = 0
-    num_primes = len(primes_list)
-    
-    for finite_invs in itertools.product(*poss_local_invs):
-        orb_int = prod([finite_invs[i][1] for i in range(num_primes)])
+def mass_unitary(n, primes_list, negdim_goal, cc, database, D_K, prec=100, verbose=False):
+    """
+    Computes the total mass for a single stable conjugacy class.
 
-        negdim_list = []
-        for j, m_and_mult in enumerate(cc):
-            m, mult = m_and_mult
+    INPUT:
+        n           : integer; total dimension of the unitary space.
+        primes_list : list; primes to check for local consistency.
+        negdim_goal : integer; target signature q in U(p,q) where p+q=n.
+        cc          : list; the conjugacy class [[m, mult], ...].
+        database    : dict; the local orbital integral database.
+        D_K         : integer; discriminant of E.
+        prec        : integer; precision for complex numbers.
+
+    OUTPUT:
+        A numerical value (mass) representing the weighted number of lattices 
+        fixed by an element in this stable class.
+    """
+    total_num_blocks = len(cc)
+    poss_local_invs_per_prime = []
+
+    for p in primes_list:
+        p_invs = []
+        sub_cc = tot_ram_sub_conj_classes_unitary(cc, p)
+        if not append_poss_local_invs_unitary(p_invs, p, sub_cc, database, D_K, total_num_blocks):
+            return 0
+        poss_local_invs_per_prime.append(p_invs)
+
+    total_mass = 0
+    num_primes = len(primes_list)
+    block_info = []
+    for m, mult in cc:
+        data = block_fields_unitary(m, D_K, False)
+        block_info.append({"mult": mult, "deg_Fi": data["deg_Fi"]})
+
+    for finite_invs in itertools.product(*poss_local_invs_per_prime):
+        orb_int = prod([x[1] for x in finite_invs])
+        if orb_int == 0: continue
+
+        negdim_options_per_block = []
+        for j, B in enumerate(block_info):
+            mult = B["mult"]
+            num_real_places = B["deg_Fi"]
             HW_sum = sum([int(finite_invs[i][0][j]) for i in range(num_primes)]) % 2
-            poss_negdims = []
-            num_real_places = int(euler_phi(m) // 2) if m > 2 else 1
+            poss_negdims_for_block = []
+
             for archi_negdims in itertools.product(range(mult + 1), repeat=num_real_places):
                 if sum(archi_negdims) % 2 == HW_sum:
-                    arch_vol = prod([(-1)**(negdim * (mult - negdim)) * binomial(mult, negdim) / (2**mult) 
-                                     for negdim in archi_negdims])
-                    poss_negdims.append([2 * sum(archi_negdims) if m > 2 else sum(archi_negdims), arch_vol])
-            negdim_list.append(poss_negdims)
+                    arch_vol = prod([
+                        (-1)**(negdim * (mult - negdim)) * binomial(mult, negdim) / (2**mult)
+                        for negdim in archi_negdims
+                    ])
+                    poss_negdims_for_block.append([sum(archi_negdims), arch_vol])
             
-        for archi_negdims in itertools.product(*negdim_list):
-            if sum([x[0] for x in archi_negdims]) == negdim_goal:
-                mass += orb_int * prod([x[1] for x in archi_negdims])
+            if not poss_negdims_for_block: return 0
+            negdim_options_per_block.append(poss_negdims_for_block)
 
-    global_factor = mass_global_term_unitary(cc, D_K)
-    return mass * global_factor
-# ========================================================================
-# 4. main function
-# ========================================================================
-def mass_list_unitary(n, primes_list, database, D_K, imposed_negdim=-1):
-    classes = conjclasses_unitary(n, primes_list)
-    negdim_goal = n if imposed_negdim == -1 else imposed_negdim
-    
+        for block_choices in itertools.product(*negdim_options_per_block):
+            if sum([x[0] for x in block_choices]) == negdim_goal:
+                total_mass += orb_int * prod([x[1] for x in block_choices])
+
+    global_factor = mass_global_term_unitary(cc, D_K, prec=prec, verbose=verbose)
+    return total_mass * global_factor
+
+def mass_list_unitary(n, primes_list, database, D_K, imposed_negdim=-1, prec=100, verbose=False):
+    """
+    Main entry point for calculating the mass list of a unitary group.
+
+    INPUT:
+        n              : integer; the total dimension.
+        primes_list    : list; primes considered.
+        database       : dict; local database.
+        D_K            : integer; discriminant.
+        imposed_negdim : integer; the signature 'q' (default n).
+        prec           : integer; computation precision.
+
+    OUTPUT:
+        list; [[conj_class, mass], ...] for all classes with non-zero mass.
+    """
+    classes = conjclasses_unitary(n, primes_list, D_K, verbose)
+    negdim_goal = n//2 if imposed_negdim == -1 else imposed_negdim
+
+    if negdim_goal < 0 or negdim_goal > n:
+        raise ValueError(f"imposed_negdim must be 0 <= q <= {n}")
+
     mass_list = []
-    print(f"Starting calculation for U({n},{n}) with D_K = {D_K}")
-    
     for conj_class in classes:
-        cc_mass = mass_unitary(n, primes_list, negdim_goal, conj_class, database, D_K)
-        
+        cc_mass = exactify_to_QQ(mass_unitary(n, primes_list, negdim_goal, conj_class, database, D_K, prec, verbose))
         if cc_mass != 0:
             mass_list.append([conj_class, cc_mass])
             print(f"{conj_class} -> Mass: {cc_mass}")
-            
-    print(f"Found {len(mass_list)} conjugacy classes with non-zero mass.")
+
     return mass_list

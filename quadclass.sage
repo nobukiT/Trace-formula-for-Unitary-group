@@ -1,13 +1,23 @@
 class QuadMod4:
-    """Unimodular lattice mod 4"""
+    """
+    Represents a unimodular quadratic lattice modulo 4.
+    """
     def __init__(self, dim, evenpart, oddpart):
+        """
+        Initialize the QuadMod4 lattice.
+
+        INPUT:
+            dim      : integer; the total dimension of the lattice.
+            evenpart : integer or Mod; the even part invariant (0 or 1 modulo 2).
+            oddpart  : integer; the odd part invariant (0, 1, 2, 3, 4, or 5).
+        """
         if dim < 0:
             raise ValueError("QuadMod4: negative dimension.")
         self.dim = dim
         self.evenpart = Mod(evenpart, 2)
         self.oddpart = oddpart
         
-        # oddpart に基づく奇数部分の次元決定
+        # Determine the dimension of the odd part based on the oddpart invariant
         if self.oddpart == 0:
             self.odddim = 0
         elif self.oddpart in (1, 2):
@@ -21,6 +31,9 @@ class QuadMod4:
             raise ValueError("QuadMod4: inconsistent dimensions.")
 
     def __neg__(self):
+        """
+        Return the negation of the lattice modulo 4.
+        """
         new_oddpart = 0
         if self.oddpart in (1, 2):
             new_oddpart = 3 - self.oddpart
@@ -65,7 +78,18 @@ class QuadMod4:
         return hash((self.dim, self.evenpart, self.oddpart))
 
 def planeorthmod4_inplace(A, i, j):
-    """i, j 平面の直交補空間へ基底を射影 (mod 4)"""
+    """
+    Projects the basis onto the orthogonal complement of the plane spanned by indices i and j (modulo 4).
+    This operation modifies the matrix in-place.
+
+    INPUT:
+        A : matrix; a symmetric matrix over Z/4Z.
+        i : integer; first index of the plane basis.
+        j : integer; second index of the plane basis.
+        
+    OUTPUT:
+        None (the matrix A is modified in-place).
+    """
     n = A.nrows()
     detinv = A[i, i] * A[j, j] - A[i, j] * A[j, i]
     for k in range(n):
@@ -75,11 +99,19 @@ def planeorthmod4_inplace(A, i, j):
             if a != 0 or b != 0:
                 for l in range(n):
                     A[k, l] -= (a * A[i, l] + b * A[j, l])
-                    A[l, k] = A[k, l] # 対称性を維持
+                    A[l, k] = A[k, l] # Maintain symmetry
     return
 
 def QuadMod4_from_mat(S):
-    """行列 S から QuadMod4 オブジェクトを抽出"""
+    """
+    Extracts the QuadMod4 invariant object from a given symmetric matrix.
+
+    INPUT:
+        S : matrix; a square symmetric matrix representing the lattice.
+        
+    OUTPUT:
+        QuadMod4 object representing the unimodular invariants of S modulo 4.
+    """
     dim = S.nrows()
     if dim != S.ncols():
         raise ValueError("Matrix must be square.")
@@ -88,9 +120,9 @@ def QuadMod4_from_mat(S):
     n = dim
     evenpart = Mod(0, 2)
     
-    # 簡約化ループ
+    # Reduction loop
     while n > 2:
-        # A[0,0] を偶数にする調整
+        # Adjustment to make A[0,0] even
         if Mod(A[0, 0], 2) != 0:
             if Mod(A[1, 1], 2) != 0:
                 A.add_multiple_of_row(0, 1, 1)
@@ -99,12 +131,12 @@ def QuadMod4_from_mat(S):
                 A.swap_rows(0, 1)
                 A.swap_columns(0, 1)
         
-        # 偶基底の探索
+        # Search for an even basis vector
         i = 1
         while i < n and (Mod(A[i, i], 2) != 0 or Mod(A[0, i], 2) == 0):
             i += 1
             
-        if i == n: # 偶平面が見つからない場合
+        if i == n: # If no even plane is found
             i = 1
             while i < n and (Mod(A[i, i], 2) == 0 or Mod(A[0, i], 2) == 0):
                 i += 1
@@ -114,11 +146,11 @@ def QuadMod4_from_mat(S):
             while j < n and (Mod(A[j, j], 2) == 0 or Mod(A[0, j], 2) != 0):
                 j += 1
             
-            if j == n: # 直交補空間が偶
+            if j == n: # Orthogonal complement is even
                 A.swap_rows(i, n - 1); A.swap_columns(i, n - 1)
                 A.swap_rows(0, n - 2); A.swap_columns(0, n - 2)
                 planeorthmod4_inplace(A, n - 2, n - 1)
-                # 再探索
+                # Re-search
                 i = 1
                 while i < n and (Mod(A[i, i], 2) != 0 or Mod(A[0, i], 2) == 0): i += 1
             else:
@@ -134,7 +166,7 @@ def QuadMod4_from_mat(S):
         n -= 2
         A = A.submatrix(2, 2)
 
-    # 最終的な判定
+    # Final determination step
     if n == 2 and Mod(A[0, 0], 2) == 0 and Mod(A[1, 1], 2) == 0:
         if A[0, 0] == 2 and A[1, 1] == 2:
             evenpart += 1
@@ -149,7 +181,7 @@ def QuadMod4_from_mat(S):
             evenpart = 0
             A = -A
         
-        # 1 を表現するか？
+        # Does it represent 1?
         if A[0, 0] == 1 or A[1, 1] == 1 or (A[0, 0] + A[1, 1] + 2 * A[0, 1]) % 4 == 1:
             oddpart = 3 if A.det() == 1 else 4
         else:
@@ -159,33 +191,40 @@ def QuadMod4_from_mat(S):
 
 def planeorthmod4_inplace_newbasis(A, n, P, i, j):
     """
-    インデックス i, j で指定される平面を、行列 A の他の基底から直交化する。
-    A: Z/4Z 上の対称行列 (破壊的変更)
-    n: 行列の次数
-    P: Z/2Z 上の基底変換行列 (破壊的変更)
+    Orthogonalizes the rest of the basis with respect to the plane specified by indices i and j.
+    Modifies both the matrix A and the basis transformation matrix P in-place.
+
+    INPUT:
+        A : matrix; a symmetric matrix over Z/4Z (modified in-place).
+        n : integer; the dimension of the matrix.
+        P : matrix; a basis transformation matrix over Z/2Z (modified in-place).
+        i : integer; first index of the plane.
+        j : integer; second index of the plane.
+        
+    OUTPUT:
+        None
     """
-    # Z/4Z における平面 (i, j) の行列式 (あるいはその逆元) を計算
-    # ユニモジュラ性の仮定から、det は 1 または 3 (=-1) であり、det == det_inv
+    # Calculate the determinant (or its inverse) of the plane (i, j) over Z/4Z.
+    # Assuming unimodularity, det is either 1 or 3 (=-1), so det == det_inv
     det_inv = A[i, i] * A[j, j] - A[i, j] * A[j, i]
     
-    # i, j 以外のすべての基底ベクトル k に対して直交化を適用
+    # Apply orthogonalization to all other basis vectors k
     for k in range(n):
         if k == i or k == j:
             continue
             
-        # 平面 (i, j) の逆行列を利用して、k 番目のベクトルを平面に射影した際の係数を求める
-        # a, b は A[k] = a*A[i] + b*A[j] (mod 平面の直交補空間) となる係数
+        # Find coefficients to project the k-th vector onto the plane.
+        # a, b are such that A[k] = a*A[i] + b*A[j] (mod orthogonal complement of the plane)
         a = det_inv * (A[j, j] * A[k, i] - A[i, j] * A[k, j])
         b = det_inv * (-A[j, i] * A[k, i] + A[i, i] * A[k, j])
         
-        # A の k 列目と k 行目から、i, j の成分を引いて直交させる
+        # Subtract the i and j components from the k-th row/column to orthogonalize
         A.add_multiple_of_column(k, i, -a)
         A.add_multiple_of_column(k, j, -b)
         A.add_multiple_of_row(k, i, -a)
         A.add_multiple_of_row(k, j, -b)
         
-        # 変換行列 P (Z/2Z) にもこの操作を反映させる
-        # a, b を Z/2Z に落として加算
+        # Reflect this operation on the transformation matrix P (over Z/2Z)
         if Mod(a, 2) != 0:
             P.add_multiple_of_column(k, i, 1)
         if Mod(b, 2) != 0:
@@ -193,13 +232,20 @@ def planeorthmod4_inplace_newbasis(A, n, P, i, j):
 
 def QuadMod4_newbasis_from_mat(S):
     """
-    ユニモジュラ格子 S を Z/4Z 上で正規形に変換し、不変量と変換行列を返す。
+    Converts a unimodular lattice S into normal form over Z/4Z and returns 
+    its invariants along with the basis transformation matrix.
+
+    INPUT:
+        S : matrix; a square symmetric matrix.
+
+    OUTPUT:
+        tuple (QuadMod4, Matrix); the invariants object and the transformation matrix over Z/2Z.
     """
     dim = S.nrows()
     if dim != S.ncols():
         raise ValueError("Error in quadmod4_newbasis: nonsquare matrix cannot be symmetric.")
 
-    # 計算用の環を設定
+    # Set up rings for computation
     R4 = Integers(4)
     R2 = Integers(2)
     
@@ -208,12 +254,12 @@ def QuadMod4_newbasis_from_mat(S):
     n = dim
     even_part = Mod(0, 2)
 
-    # 1. 偶ユニモジュラ平面 (Even unimodular planes) の抽出ループ
+    # 1. Loop to extract even unimodular planes
     while n > 2 or (n == 2 and Mod(A[0, 0], 2) == 0 and Mod(A[1, 1], 2) == 0):
-        # 最後の基底ベクトル A[n-1] を偶(even)にする
+        # Make the last basis vector A[n-1] even
         if Mod(A[n-1, n-1], 2) != 0:
             if Mod(A[n-2, n-2], 2) != 0:
-                # e_n を e_n + e_{n-1} で置き換え
+                # Replace e_n with e_n + e_{n-1}
                 A[n-1, n-1] += 2 * A[n-1, n-2] + A[n-2, n-2]
                 for i in range(n - 1):
                     val = A[n-2, i]
@@ -221,12 +267,12 @@ def QuadMod4_newbasis_from_mat(S):
                     A[i, n-1] += val
                 new_basis.add_multiple_of_column(n-1, n-2, 1)
             else:
-                # e_{n-1} と e_n を入れ替え
+                # Swap e_{n-1} and e_n
                 A.swap_columns(n-2, n-1)
                 A.swap_rows(n-2, n-1)
                 new_basis.swap_columns(n-2, n-1)
 
-        # e_n と直交しない偶基底ベクトルを探す
+        # Search for an even basis vector orthogonal to e_n
         idx = -1
         for i in range(n - 2, -1, -1):
             if Mod(A[i, i], 2) == 0 and Mod(A[n-1, i], 2) != 0:
@@ -234,7 +280,7 @@ def QuadMod4_newbasis_from_mat(S):
                 break
         
         if idx < 0:
-            # 偶基底が見つからない場合、奇基底を探す
+            # If no even basis vector is found, search for an odd one
             for i in range(n - 2, -1, -1):
                 if Mod(A[i, i], 2) != 0 and Mod(A[n-1, i], 2) != 0:
                     idx = i
@@ -243,7 +289,7 @@ def QuadMod4_newbasis_from_mat(S):
             if idx < 0:
                 raise RuntimeError("Error: quadmod4_newbasis: not unimodular.")
 
-            # e_n と直交する奇基底ベクトルを探す
+            # Search for an odd basis vector orthogonal to e_n
             j_idx = -1
             for j in range(n - 2, -1, -1):
                 if Mod(A[j, j], 2) != 0 and Mod(A[n-1, j], 2) == 0:
@@ -251,17 +297,17 @@ def QuadMod4_newbasis_from_mat(S):
                     break
             
             if j_idx < 0:
-                # (e_i, e_n) が奇ユニモジュラ平面。直交補空間を偶にする処理。
+                # (e_i, e_n) forms an odd unimodular plane. Make the orthogonal complement even.
                 if idx > 0:
                     A.swap_columns(idx, 0); A.swap_rows(idx, 0)
                     new_basis.swap_columns(idx, 0)
                 A.swap_columns(1, n-1); A.swap_rows(1, n-1)
                 new_basis.swap_columns(1, n-1)
                 
-                # 平面直交化（外部関数を想定）
+                # Plane orthogonalization
                 planeorthmod4_inplace_newbasis(A, n, new_basis, 0, 1)
                 
-                # 再度検索
+                # Re-search
                 for i in range(n - 2, -1, -1):
                     if Mod(A[i, i], 2) == 0 and Mod(A[n-1, i], 2) != 0:
                         idx = i
@@ -269,19 +315,19 @@ def QuadMod4_newbasis_from_mat(S):
                 if idx < 0:
                     raise RuntimeError("Error: quadmod4_newbasis reduction failed.")
             else:
-                # (e_i + e_j, e_n) は偶ユニモジュラ平面になる
+                # (e_i + e_j, e_n) will form an even unimodular plane
                 A.add_multiple_of_column(idx, j_idx, 1)
                 A.add_multiple_of_row(idx, j_idx, 1)
                 new_basis.add_multiple_of_column(idx, j_idx, 1)
 
-        # (e_idx, e_{n-1}) を偶ユニモジュラ平面として確定させる
+        # Finalize (e_idx, e_{n-1}) as an even unimodular plane
         if idx < n - 2:
             A.swap_columns(n-2, idx); A.swap_rows(n-2, idx)
             new_basis.swap_columns(n-2, idx)
         
         planeorthmod4_inplace_newbasis(A, n, new_basis, n-2, n-1)
 
-        # 標準形 diag(0,2) または diag(2,0) の調整
+        # Adjustment for standard forms diag(0,2) or diag(2,0)
         if A[n-2, n-2] == 0 and A[n-1, n-1] == 2:
             A.add_multiple_of_column(n-1, n-2, 1); A.add_multiple_of_row(n-1, n-2, 1)
             new_basis.add_multiple_of_column(n-1, n-2, 1)
@@ -289,13 +335,13 @@ def QuadMod4_newbasis_from_mat(S):
             A.add_multiple_of_column(n-2, n-1, 1); A.add_multiple_of_row(n-2, n-1, 1)
             new_basis.add_multiple_of_column(n-2, n-1, 1)
 
-        # even_part の更新
+        # Update the even_part invariant
         if even_part == 0:
             if A[n-1, n-1] == 2:
                 even_part = Mod(1, 2)
         else:
             if A[n-1, n-1] == 0:
-                # 平面の入れ替え
+                # Swap planes
                 indices = [n-2, n-1, n, n+1]
                 for k in range(0, 2):
                     A.swap_rows(indices[k], indices[k+2])
@@ -303,7 +349,7 @@ def QuadMod4_newbasis_from_mat(S):
                     new_basis.swap_columns(indices[k], indices[k+2])
             else:
                 even_part = Mod(0, 2)
-                # 基底のクリアと更新
+                # Clear bases and update
                 for k in [n-2, n-1, n, n+1]: A[k, k] = 0
                 new_basis.add_multiple_of_column(n-2, n, 1)
                 new_basis.add_multiple_of_column(n+1, n-1, 1)
@@ -312,12 +358,12 @@ def QuadMod4_newbasis_from_mat(S):
         
         n -= 2
 
-    # 2. 残った奇部分 (Odd part) の分類
+    # 2. Classification of the remaining odd part
     odd_part = 0
     if n == 1:
         odd_part = 1 if A[0, 0] == 1 else 2
     elif n == 2:
-        # 対角成分が 0 の場合の調整
+        # Adjustment when diagonal entries are 0
         if Mod(A[0, 0], 2) == 0:
             A.add_multiple_of_column(0, 1, 1); A.add_multiple_of_row(0, 1, 1)
             new_basis.add_multiple_of_column(0, 1, 1)
@@ -325,10 +371,10 @@ def QuadMod4_newbasis_from_mat(S):
             A.add_multiple_of_column(1, 0, 1); A.add_multiple_of_row(1, 0, 1)
             new_basis.add_multiple_of_column(1, 0, 1)
 
-        # 特殊ケースの結合
+        # Consolidation of special cases
         if even_part == 1 and A[0, 0] * A[1, 1] == 1:
             even_part = 0
-            # A[0,0], A[1,1] と A[2,2], A[3,3] の相互作用を解消する操作
+            # Operations to resolve interactions between A[0,0], A[1,1] and A[2,2], A[3,3]
             for i in [0, 1]:
                 for j in [2, 3]:
                     A.add_multiple_of_column(i, j, 1)
@@ -338,7 +384,7 @@ def QuadMod4_newbasis_from_mat(S):
                     new_basis.add_multiple_of_column(i, j, 1)
                     new_basis.add_multiple_of_column(j, i, 1)
 
-        # 奇部分の不変量を決定
+        # Determine the invariant of the odd part
         if A[0, 0] == 3:
             if A[1, 1] == 1:
                 new_basis.swap_columns(0, 1)
@@ -351,8 +397,19 @@ def QuadMod4_newbasis_from_mat(S):
     return QuadMod4(dim, even_part, odd_part), new_basis
 
 class QuadQp:
-    """Quadratic form over Q_p"""
+    """
+    Represents a regular quadratic form over the p-adic field Q_p.
+    """
     def __init__(self, p, dim, disc, hasse):
+        """
+        Initialize the QuadQp structure.
+
+        INPUT:
+            p     : integer; a prime number.
+            dim   : integer; the dimension of the quadratic form.
+            disc  : integer or rational; the discriminant.
+            hasse : integer (+1 or -1); the Hasse invariant.
+        """
         if not is_prime(p): raise ValueError(f"{p} is not prime")
         if dim <= 0: raise ValueError("Dimension must be >= 1")
         if disc == 0 or hasse**2 != 1: raise ValueError("Invalid disc or Hasse invariant")
@@ -362,7 +419,7 @@ class QuadQp:
         self.disc = self._unique_repr_mod_squares(disc, p)
         self.hasse = hasse
         
-        # 次元の整合性チェック
+        # Dimension consistency checks
         if dim == 1 and hasse == -1:
             raise ValueError("Impossible form in dimension 1")
         if dim == 2 and hasse == -1:
@@ -371,6 +428,9 @@ class QuadQp:
 
     @staticmethod
     def _unique_repr_mod_squares(d, p):
+        """
+        Returns a unique representative for the discriminant modulo squares in Q_p^x.
+        """
         v = d.valuation(p)
         a = d // p**v
         if p == 2:
@@ -382,6 +442,9 @@ class QuadQp:
         return i * p if v % 2 == 1 else i
 
     def has_disc(self, d):
+        """
+        Checks whether the discriminant is equivalent to d modulo squares.
+        """
         v = d.valuation(self.p)
         if (v - self.disc.valuation(self.p)) % 2 != 0:
             return False
@@ -392,11 +455,20 @@ class QuadQp:
             return Mod(self.disc / d_unit, 8) == 1
 
     def __add__(self, other):
+        """
+        Returns the orthogonal direct sum of two p-adic quadratic forms.
+        """
         if self.p != other.p: raise ValueError("Primes do not match.")
         new_hasse = self.hasse * other.hasse * hilbert_symbol(self.disc, other.disc, self.p)
         return QuadQp(self.p, self.dim + other.dim, self.disc * other.disc, new_hasse)
 
     def contains_regular_lattice(self):
+        """
+        Checks if the quadratic space contains a regular integral lattice.
+        
+        OUTPUT:
+            Boolean.
+        """
         if self.dim == 0: return True
         if self.p != 2:
             return Mod(self.disc.valuation(self.p), 2) == 0 and self.hasse == 1
@@ -422,29 +494,31 @@ class QuadQp:
         return str(self)
 
 def quadQp_from_mat(A, p):
+    """
+    Constructs a QuadQp object safely. A is guaranteed to be over QQ.
+    """
     dim = A.nrows()
-    
-    # 行列のベースリングが QQ でない（Qpなど）場合、有理数にリフトする
-    if A.base_ring() != QQ:
-        # p進数の要素は .lift() で有理数(ZZ)の表現に戻せる
-        A_QQ = matrix(QQ, dim, dim, [x.lift() if hasattr(x, 'lift') else QQ(x) for x in A.list()])
-    else:
-        A_QQ = A
-        
+    A_QQ = matrix(QQ, A)
     disc = A_QQ.det()
     
     if disc == 0:
         raise ValueError(f"Discriminant is zero at prime {p}. Matrix:\n{A_QQ}")
     
-    # QuadraticForm は必ず QQ 上で宣言する (hilbert_symbol エラー回避のため)
     Q = QuadraticForm(QQ, 2 * A_QQ)
     hasse = Q.hasse_invariant(p)
     
-    # hasse不変量を厳格に 1 か -1 にキャスト
     return QuadQp(p, dim, disc, 1 if hasse > 0 else -1)
 
 def sum_list_quad(L):
-    """QuadQp リストの和"""
+    """
+    Computes the orthogonal direct sum of a list of quadratic forms.
+
+    INPUT:
+        L : list; a list of QuadQp objects.
+        
+    OUTPUT:
+        QuadQp object representing the total sum.
+    """
     if not L: raise ValueError("Empty list.")
     res = L[0]
     for item in L[1:]:
@@ -452,8 +526,19 @@ def sum_list_quad(L):
     return res
 
 class QuadGlob:
-    """Global Quadratic form over QQ"""
+    """
+    Represents a non-degenerate quadratic form over the rational numbers QQ.
+    """
     def __init__(self, dim, disc, conductor, negdim):
+        """
+        Initialize the QuadGlob form.
+
+        INPUT:
+            dim       : integer; the total dimension of the quadratic form.
+            disc      : integer; the discriminant (will be reduced to square-free).
+            conductor : integer; the conductor.
+            negdim    : integer; the dimension of the negative-definite subspace (signature info).
+        """
         self.dim = dim
         self.disc = self._square_reduce(disc)
         self.conductor = self._square_reduce(conductor)
@@ -467,6 +552,9 @@ class QuadGlob:
 
     @staticmethod
     def _square_reduce(n):
+        """
+        Reduces an integer modulo squares (returns the square-free part).
+        """
         if n == 0: return 0
         if n < 0: return -QuadGlob._square_reduce(-n)
         res = n

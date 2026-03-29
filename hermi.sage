@@ -1,63 +1,74 @@
 load("hermilatticeclass.sage") 
 load("young.sage")
+load("utils.sage")
 
 # ========================================================================
-# 1. 基本的な組み合わせ論と線形代数
-# ========================================================================
 
-def partitions(n, maxpower):
+def enum_partitions(n, maxpower):
     """
-    多重度 n を、最大深さ maxpower まで分割するすべてのパターンを生成する。
+    Generate all partitions of a multiplicity `n` up to a maximum depth `maxpower`.
+    
+    INPUT:
+        n        : integer; the total multiplicity (dimension) to partition
+        maxpower : integer; the maximum allowed depth
+    OUTPUT:
+        A list of lists, where each inner list represents a valid partition type.
     """
     L = [[n]]
     if maxpower == 0:
         return L
     i = n - 1
     while i >= 0:
-        for K in partitions(n - i, maxpower - 1):
+        for K in enum_partitions(n - i, maxpower - 1):
             L.append([i] + K)
-        i = i - 1
+        i -= 1
     return L
 
-def quadQp_from_mat(A, p):
+def tracematrix(A, alg_data):
     """
-    行列 A から素数 p における局所二次形式 QuadQp を生成する。
+    Compute the trace matrix of a Hermitian matrix A over the extension E/F.
     """
-    dim = A.nrows()
-    disc = A.det()
-    if disc == 0:
-        raise ValueError(f"Discriminant is zero at prime {p}. Matrix:\n{A}")
+    Ei = alg_data['E']
+    conj = alg_data['conj']
     
-    # QuadraticForm を通じて Hasse 不変量を計算
-    Q = QuadraticForm(QQ, 2 * A)
-    hasse = Q.hasse_invariant(p)
-    return QuadQp(p, dim, disc, 1 if hasse > 0 else -1)
-
-def tracematrix(A, E, F, trace_func, basis):
-    """
-    拡大 E/F におけるエルミート行列 A のトレース行列を計算する。
-    trace_func: E -> F のトレース関数
-    basis: E の F 上の基底 (list)
-    """
+    # Ei.basis() might fail on some category objects, 
+    # so we use integral_basis() which is more robust for number fields,
+    # or access the basis via the absolute_field if available.
+    try:
+        basis_E = list(Ei.basis())
+    except AttributeError:
+        # Fallback for category objects or absolute fields
+        basis_E = list(Ei.absolute_generator()**i for i in range(Ei.degree()))
+    
     nrows, ncols = A.dimensions()
-    deg = len(basis)
+    deg = len(basis_E)
     matlist = []
     
     for a in range(nrows):
         for b in range(ncols):
-            # Tr(A_ab * theta_i * conj(theta_j)) 相当を計算
-            # ※ conj の処理は A の定義や trace_func の設計に含まれているものとする
-            entries = [[trace_func(A[a,b] * basis[i] * basis[j]) for j in range(deg)] for i in range(deg)]
-            matlist.append(matrix(F, deg, deg, entries))
+            entries = [[QQ((A[a,b] * basis_E[i] * conj(basis_E[j])).trace()) 
+                        for j in range(deg)] for i in range(deg)]
+            matlist.append(matrix(QQ, deg, deg, entries))
             
     return block_matrix(nrows, ncols, matlist, subdivide=False)
 
 # ========================================================================
-# 2. エルミート格子の型列挙 (Combinatorial Types)
-# ========================================================================
 
 def enum_hermi_ramoddp_types(d, e, mult, maxpower, mini=0):
-    """奇素点における分岐エルミート格子の不変量（型）を列挙する。"""
+    """
+    Enumerate the invariants (types) of ramified Hermitian lattices at an odd prime.
+    
+    INPUT:
+        d        : integer; valuation of the different of E/F
+        e        : integer; ramification index
+        mult     : integer; total multiplicity (dimension)
+        maxpower : integer; maximum depth of the Jordan decomposition
+        mini     : integer; current minimum depth index (used for recursion, default 0)
+
+    OUTPUT:
+        A list of lists, where each inner list contains tuples `[dim, type_mod_2]` 
+        representing valid Jordan block invariants.
+    """
     if mini > maxpower * e:
         return []
     L = []
@@ -80,8 +91,21 @@ def enum_hermi_ramoddp_types(d, e, mult, maxpower, mini=0):
                     L.append([[i, Mod(1, 2)]] + J)
     return L
 
-def formal_types_hermi_ram2(d, e, mult, maxpower, mini=0):
-    """偶素点 (p=2) における分岐エルミート格子の型を列挙する。"""
+def enum_hermi_ram2_types(d, e, mult, maxpower, mini=0):
+    """
+    Enumerate the invariants (types) of ramified Hermitian lattices at p = 2.
+    
+    INPUT:
+        d        : integer; valuation of the different of E/F
+        e        : integer; ramification index
+        mult     : integer; total multiplicity (dimension)
+        maxpower : integer; maximum depth of the Jordan decomposition
+        mini     : integer; current minimum depth index (used for recursion, default 0)
+
+    OUTPUT:
+        A list of lists containing tuples `[dim, type_info...]` representing 
+        valid Jordan block invariants for the p=2 case.
+    """
     if mini > maxpower * e:
         return []
     L = []
@@ -91,7 +115,7 @@ def formal_types_hermi_ram2(d, e, mult, maxpower, mini=0):
             L = [[[mult // 2, Mod(0, 2)]], [[mult // 2, Mod(1, 2)]]]
         while i > 0:
             i -= 1
-            for J in formal_types_hermi_ram2(d, e, mult - 2 * i, maxpower, mini + 1):
+            for J in enum_hermi_ram2_types(d, e, mult - 2 * i, maxpower, mini + 1):
                 L.append([[i, Mod(0, 2)]] + J)
                 if i > 0 and (J[0][0] == 0 or J[0][1] == Mod(0, 2)):
                     L.append([[i, Mod(1, 2)]] + J)
@@ -102,7 +126,7 @@ def formal_types_hermi_ram2(d, e, mult, maxpower, mini=0):
         i = mult
         while i > 0:
             i -= 1
-            for J in formal_types_hermi_ram2(d, e, mult - i, maxpower, mini + 1):
+            for J in enum_hermi_ram2_types(d, e, mult - i, maxpower, mini + 1):
                 if i % 2 == 0:
                     L.append([[i, Mod(0, 2)]] + J)
                 if i > 0:
@@ -112,155 +136,163 @@ def formal_types_hermi_ram2(d, e, mult, maxpower, mini=0):
     return L
 
 # ========================================================================
-# 3. 代表トレース行列の構成 (Trace Matrices)
-# ========================================================================
 
-def comp_tracematrices_ramoddp(unif, d, e, maxpower, E, F, trace_func, basis, notnorm, anti=False):
-    """奇素点用のトレース行列リストを構成。"""
-    L = []
-    # アンチエルミート用の補正因子（必要に応じて外部から与える）
-    delta = E.gen() if anti else 1 
+def comp_tracematrices_ramoddp(maxpower, alg_data, anti=False):
+    """
+    Precompute trace matrices for ramified odd primes.
     
-    for l in range(-d, e * maxpower + 1):
+    INPUT:
+        maxpower   : integer; maximum depth parameter
+        alg_data
+        anti       : boolean; if True, computes for anti-Hermitian spaces
+
+    OUTPUT:
+        A list of precomputed trace matrices (or pairs of matrices for norm/non-norm variants).
+    """
+    L = []
+    delta = alg_data['E'].gen() if anti else 1 
+    
+    for l in range(-alg_data['d'], alg_data['e'] * maxpower + 1):
         if l % 2 == 0:
-            # Norm と Non-norm の成分
-            M1 = matrix(E, 1, 1, [delta * unif**(l//2)])
-            T1 = tracematrix(M1, E, F, trace_func, basis)
-            M2 = matrix(E, 1, 1, [delta * unif**(l//2) * notnorm])
-            T2 = tracematrix(M2, E, F, trace_func, basis)
+            M1 = matrix(alg_data['E'], 1, 1, [delta * alg_data['unif']**(l//2)])
+            T1 = tracematrix(M1, alg_data)
+            M2 = matrix(alg_data['E'], 1, 1, [delta * alg_data['unif']**(l//2) * alg_data['notnorm']])
+            T2 = tracematrix(M2, alg_data)
             L.append([T1, T2])
         else:
-            # Hyperbolic 的な成分
-            val = unif**((l+1)//2)
-            M = matrix(E, 1, 1, [delta * val])
-            T = tracematrix(M, E, F, trace_func, basis)
-            L.append(block_matrix(F, 2, 2, [[0, T], [T.transpose(), 0]], subdivide=False))
+            val = alg_data['unif']**((l+1)//2)
+            M = matrix(alg_data['E'], 1, 1, [delta * val])
+            T = tracematrix(M, alg_data)
+            L.append(block_matrix(alg_data['F'], 2, 2, [[0, T], [T.transpose(), 0]], subdivide=False))
     return L
 
-def comp_tracematrices_ram2(unif, d, e, maxpower, E, F, trace_func, basis, anti=False):
-    """2進体用のトレース行列リストを構成。"""
+def comp_tracematrices_ram2(maxpower, alg_data, anti=False):
+    """
+    Precompute trace matrices for ramified primes where p = 2.
+    
+    INPUT:
+        maxpower   : integer; maximum depth parameter
+        alg_data
+        anti       : boolean; if True, computes for anti-Hermitian spaces
+
+    OUTPUT:
+        A list of precomputed trace matrices tailored for the p=2 ramified case.
+    """
     L = []
-    delta = E.gen() if anti else 1
-    for l in range(-d, e * maxpower + 1):
+    delta = alg_data['E'].gen() if anti else 1
+    for l in range(-alg_data['d'], alg_data['e'] * maxpower + 1):
         if l % 2 == 1:
-            val = unif**((l+1)//2)
-            M = matrix(E, 1, 1, [delta * val])
-            T = tracematrix(M, E, F, trace_func, basis)
-            L.append([block_matrix(F, 2, 2, [[0, T], [T.transpose(), 0]], subdivide=False)])
+            val = alg_data['unif']**((l+1)//2)
+            M = matrix(alg_data['E'], 1, 1, [delta * val])
+            T = tracematrix(M, alg_data)
+            T_block = block_matrix(QQ, 2, 2, [[0, T], [T.transpose(), 0]], subdivide=False)
+            L.append([T_block, T_block])
         else:
-            M1 = matrix(E, 1, 1, [delta * unif**(l//2)])
-            T1 = tracematrix(M1, E, F, trace_func, basis)
-            # 実際には Type I/II の区別に基づき M2 なども追加
-            L.append([T1])
+            M1 = matrix(alg_data['E'], 1, 1, [delta * alg_data['unif']**(l//2)])
+            T1 = tracematrix(M1, alg_data)
+            L.append([T1, T1, T1])
     return L
 
-def comp_tracematrices_unr(unif, d, e, maxpower, E, F, trace_func, basis):
-    """不分岐ケース用のトレース行列リストを構成。"""
+def comp_tracematrices_unr(maxpower, alg_data):
+    """
+    Precompute trace matrices for unramified cases.
+    
+    INPUT:
+        maxpower   : integer; maximum depth parameter
+        alg_data
+
+    OUTPUT:
+        A list of trace matrices corresponding to unramified filtration steps.
+    """
     matlist = []
-    for l in range(-d, e * maxpower + 1):
-        M = matrix(E, 1, 1, [unif**l])
-        matlist.append(tracematrix(M, E, F, trace_func, basis))
+    for l in range(0, alg_data['e'] * maxpower + 1):  # Unramified so d=0
+        M = matrix(alg_data['E'], 1, 1, [alg_data['unif']**l])
+        matlist.append(tracematrix(M, alg_data))
     return matlist
 
 # ========================================================================
-# 4. エルミート格子の具体的構成と列挙
-# ========================================================================
 
-def unique_hermi_unr(q, p, unif, d, e, mult, E, OE, residue_field, conj, val_func, trace_func, basis):
-    """唯一的な不分岐エルミート格子の構成。"""
-    # 判別式がノルムかどうかの判定 (簡略化版)
-    isnorm = (d * mult) % 2 
+def unique_hermi_unr(p, mult, alg_data):
+    """
+    Construct the unique maximal unramified Hermitian lattice.
+    Used exclusively when maxpower == 0 (no p-power structure required).
     
-    # グラム行列の構成
-    diag = [unif**(-d)] * mult
-    A = diagonal_matrix(E, diag)
-    gamma_mat = identity_matrix(mult * e)
+    INPUT:
+        p          : integer; prime number
+        mult       : integer; dimension/multiplicity
+        alg_data
+
+    OUTPUT:
+        A list containing a single list `[isnorm, lattice_obj]` where `lattice_obj` 
+        is an instantiated hermilattice_unr object.
+    """
+    isnorm = 0 
+    A = identity_matrix(alg_data['E'], mult)
+    gram_F = tracematrix(A, alg_data)
+    abs_dim = gram_F.nrows()
     
-    # 体積 (mass local term) の計算
-    mass_term = hermi_unr_mass_local_term(q, mult, [mult], False)
+    gamma_mat = identity_matrix(abs_dim)
     
-    # lattice_obj の生成 (build_hermilattice_unr のロジックを使用)
-    lattice_obj = hermilattice_unr(q, p, 0, mult * e, [mult], A, gamma_mat, mass_term)
-    lattice_obj.Qpclass = quadQp_from_mat(tracematrix(A, E, OE.base_ring(), trace_func, basis), p)
+    mass_term = hermi_unr_mass_local_term(alg_data['q'], mult, [mult])
+    lattice_obj = hermilattice_unr(alg_data['q'], p, 0, abs_dim, [mult], A, gamma_mat, mass_term)
+    
+    lattice_obj.Qpclass = quadQp_from_mat(gram_F, p)
     
     return [[isnorm, lattice_obj]]
 
-def enumhermi(q, p, unif, E, OE, residue_field, conj, val_func, trace_func, basis, 
-              d, e, mult, maxpower, issplit=False, t=None, notnorm=None):
+def enum_hermi(p, m, D_K, mult, maxpower, alg_data):
     """
-    Enumerate all isomorphism classes of Hermitian lattices over a general local field.
-    
-    Arguments:
-        q, p, unif: Order of the residue field, characteristic, and elements of the base field F
-        E, OE, residue_field, conj, val_func, trace_func, basis: Algebraic data for the extension E/F
-        d, e: Different index and branch index of E/F
-        mult: Dimension of the space
-        maxpower: Maximum depth of the Jordan decomposition
-        issplit, t: Split case flag and idempotent approximation
-        notnorm: Non-normal element for odd prime branch cases
+    Enumerate all isomorphism classes of Hermitian lattices over a local field.
+    Assumes the extension E/F is a field extension (inert or ramified).
+
+    INPUT:
+        p          : integer; the prime number.
+        m          : integer; the complete cyclotomic order.
+        D_K        : integer; the discriminant of the global quadratic field.
+        mult       : integer; total dimension (multiplicity).
+        maxpower   : integer; maximum depth of the p-power structure.
+        alg_data   : dict; dictionary containing local algebraic structures 
+                     (q, unif, E, OE, residue_field, conj, val_func, trace_func, basis, d, e, notnorm).
+
+    OUTPUT:
+        list: A list of `[invariant, lattice_obj]` containing all valid Hermitian lattices.
     """
-*** Translated with www.DeepL.com/Translator (free version) ***
-
-
+    k = Integer(m).valuation(p)
+    m2 = m // (p**k)
     result = []
     
-    # ---------------------------------------------------------------------
-    # 1. 分岐ケース (Ramified: d > 0)
-    # ---------------------------------------------------------------------
-    if d > 0:
+    if alg_data['d'] > 0:
         if p == 2:
-            # 2進体上の分岐型の列挙
-            formal_types = formal_types_hermi_ram2(d, e, mult, maxpower)
-            # トレース行列の事前計算
-            p_t_matrices = comp_tracematrices_ram2(unif, d, e, maxpower, E, OE.base_ring(), trace_func, basis)
-            
+            formal_types = enum_hermi_ram2_types(alg_data['d'], alg_data['e'], mult, maxpower)
+            p_t_matrices = comp_tracematrices_ram2(maxpower, alg_data)
             for I in formal_types:
-                # 2進分岐格子の構成 (quadlattice_2... 相当の処理を一般化したもの)
-                # ここでは各型 I に基づき build_hermilattice_unr 等を用いて具体化する
-                # (実装の詳細は格子の型 I の解釈に依存)
-                pass 
-                
+                latt = quadlattice_2_from_hermi_type(m, D_K, mult, I, p_t_matrices, alg_data)
+                if latt[1].type_list[0][1] == Mod(0, 2): 
+                    result.append(latt)
+            return result
         else:
-            # 奇素数体上の分岐型の列挙
-            formal_types = enum_hermi_ramoddp_types(d, e, mult, maxpower)
-            if notnorm is None:
+            formal_types = enum_hermi_ramoddp_types(alg_data['d'], alg_data['e'], mult, maxpower)
+            if alg_data['notnorm'] is None:
                 raise ValueError("Ramified odd case requires 'notnorm' element.")
-            
-            p_t_matrices = comp_tracematrices_ramoddp(unif, d, e, maxpower, E, OE.base_ring(), 
-                                                      trace_func, basis, notnorm)
-            
+            p_t_matrices = comp_tracematrices_ramoddp(maxpower, alg_data)
             for I in formal_types:
-                # 奇素数分岐格子の構成
-                # result.append(build_ramoddp_lattice(q, p, unif, ..., I, p_t_matrices))
-                pass
-
-    # ---------------------------------------------------------------------
-    # 2. 不分岐ケース (Unramified: d = 0, e = 1)
-    # ---------------------------------------------------------------------
+                latt = quadlattice_oddp_from_hermi_type(p, k, alg_data['d'], mult, I, p_t_matrices)
+                result.append(latt)
+            return result
     else:
-        # 空間全体の有効な多重度（基礎体上での次元）
-        # 元のコードの effective_mult = mult * e_K に相当
         effective_mult = mult 
-        
         if maxpower == 0:
-            # 極大格子の唯一性を利用した構成
-            return unique_hermi_unr(q, p, unif, 0, e, effective_mult, 
-                                   E, OE, residue_field, conj, val_func, trace_func, basis)
+            return unique_hermi_unr(p, effective_mult, alg_data)
         else:
-            ftypes = partitions(effective_mult, maxpower)
-            
-            # 不分岐トレース行列の事前計算
-            precomp_trace_matrices = comp_tracematrices_unr(unif, 0, e, maxpower, E, OE.base_ring(), trace_func, basis)
-            
+            ftypes = enum_partitions(effective_mult, maxpower)
+
             for formal_type in ftypes:
                 latt_data = build_hermilattice_unr(
-                    q, p, unif, 0, 0, d, e, mult, formal_type, issplit, precomp_trace_matrices,
-                    E, OE, residue_field, conj, val_func, t
+                    p, k, m2, mult, formal_type, alg_data
                 )
                 
-                gram_F = tracematrix(latt_data[1].gram_mat, E, OE.base_ring(), trace_func, basis)
+                gram_F = tracematrix(latt_data[1].gram_mat, alg_data)
                 latt_data[1].Qpclass = quadQp_from_mat(gram_F, p)
                 
                 result.append(latt_data)
-                
-    return result
+        return result

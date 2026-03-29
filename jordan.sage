@@ -1,33 +1,32 @@
-def jordanhermi_unr_generalized(A, E, OE, residue_field, unif, conj, val_func):
+from sage.all import *
+
+def jordanhermi_unr(A, alg_data):
     """
-    Jordan decomposition of a Hermitian matrix over a general local algebraic number field (unramified case).
+    Computes the Jordan decomposition of a Hermitian matrix over a general 
+    local algebraic number field for the unramified (or inert/ramified non-split) case.
     
-    Arguments:
-      A: The Hermitian matrix to be Jordan decomposed
-      E: The field to which the components belong (quadratic extension E/F)
-      OE: The ring of integers of E
-      residue_field: The residue field of E (F_q)
-      unif: A prime element of the base field F (uniformizer varpi_F)
-      conj: A non-trivial automorphism (conjugation) of the Galois group of E/F
-      val_func: A function that takes an element of E and returns the valuation at the corresponding prime ideal
+    INPUT:
+        A        : matrix; The Hermitian matrix to be decomposed.
+        alg_data : dict; Dictionary containing local algebraic structures.
+                        
+    OUTPUT:
+        tuple: (newbasis, gram_mat, dims)
     """
     dim = A.nrows()
     d = 0
     dims = []
     B = copy(A)
-    newbasis = Matrix(E, dim, dim, 1)
+    newbasis = Matrix(alg_data['E'], dim, dim, 1)
 
-    # p ではなく、与えられた付値関数 val_func を使用して最小付値を計算
-    vals_B = [val_func(x) for x in B.list() if x != 0]
+    vals_B = [alg_data['val_func'](x) for x in B.list() if x != 0]
     i = min(vals_B) if vals_B else 0
 
     while d < dim:
-        # p**i ではなく基礎体の素元 unif**i でスケール
-        while Matrix(residue_field, B / (unif**i)) == 0:
+        while Matrix(alg_data['residue_field'], B / (alg_data['unif']**i)) == 0:
             i += 1
             dims.append(0)
 
-        Bmod = Matrix(residue_field, B / (unif**i))
+        Bmod = Matrix(alg_data['residue_field'], B / (alg_data['unif']**i))
         rank = Bmod.rank()
         dims.append(rank)
 
@@ -41,59 +40,62 @@ def jordanhermi_unr_generalized(A, E, OE, residue_field, unif, conj, val_func):
             indices.extend(range(k+1, l))
             k = l
         indices.extend(range(k+1, dim - d + 1))
-
-        P = Matrix(OE, dim, dim)
+        P = Matrix(alg_data['OE'], dim - d, dim - d)
         k = 1
         for j in indices:
             P[j-1, k-1] = 1
             k += 1
 
-        # 注意: integer_kernel は SageMath の整数環・代数体サポートに依存します
-        kernbase_oe = (B * P).integer_kernel(OE).basis()
+        kernbase_oe = (B * P).integer_kernel(alg_data['OE']).basis()
         for v in kernbase_oe:
             l = 0
             for x in v:
-                P[l, k-1] = conj(x)
+                P[l, k-1] = alg_data['conj'](x)
                 l += 1
             k += 1
 
         if d + rank < dim:
-            Ptransconj = Matrix(OE, [[conj(P[b, a]) for b in range(dim)] for a in range(dim)])
+            Ptransconj = Matrix(alg_data['OE'], [[alg_data['conj'](P[b, a]) for b in range(dim - d)] for a in range(dim - d)])
             B = (Ptransconj * B * P).submatrix(rank, rank)
 
         newbasis = newbasis * block_diagonal_matrix(diagonal_matrix([1]*d), P, subdivide=False)
         d += rank
         i += 1
 
-    newbasistransconj = Matrix(E, [[conj(newbasis[b, a]) for b in range(dim)] for a in range(dim)])
+    newbasistransconj = Matrix(alg_data['E'], [[alg_data['conj'](newbasis[b, a]) for b in range(dim)] for a in range(dim)])
     return newbasis, newbasistransconj * A * newbasis, dims
 
 
-def jordanhermi_split_generalized(A, E, OE, residue_field, unif, conj, val_func, t):
+def jordanhermi_split(A, alg_data, t):
     """
-    一般の局所代数体におけるエルミート行列のジョルダン分解（分裂ケース）。
+    Computes the Jordan decomposition of a Hermitian matrix over a general 
+    local algebraic number field for the split case.
     
-    追加引数:
-      t: E が 2つの素イデアル P1, P2 に分裂するとき、
-         t = 1 mod P1 かつ t = 0 mod P2 を満たす OE の元（局所的な冪等元の近似）
+    INPUT:
+        A        : matrix; The Hermitian matrix to be decomposed.
+        alg_data : dict; Dictionary containing local algebraic structures.
+        t        : element; A local idempotent approximator.
+                        
+    OUTPUT:
+        tuple: (newbasis, gram_mat, dims)
     """
-    tconj = OE(conj(t))
+    tconj = alg_data['OE'](alg_data['conj'](t))
     
     dim = A.nrows()
     d = 0
     dims = []
     B = copy(A)
-    newbasis = Matrix(E, dim, dim, 1)
+    newbasis = Matrix(alg_data['E'], dim, dim, 1)
 
-    vals_B = [val_func(x) for x in B.list() if x != 0]
+    vals_B = [alg_data['val_func'](x) for x in B.list() if x != 0]
     i = min(vals_B) if vals_B else 0
 
     while d < dim:
-        while Matrix(residue_field, B / (unif**i)) == 0:
+        while Matrix(alg_data['residue_field'], B / (alg_data['unif']**i)) == 0:
             i += 1
             dims.append(0)
 
-        Bmod = Matrix(residue_field, B / (unif**i))
+        Bmod = Matrix(alg_data['residue_field'], B / (alg_data['unif']**i))
         rank = Bmod.rank()
         dims.append(rank)
 
@@ -108,7 +110,7 @@ def jordanhermi_split_generalized(A, E, OE, residue_field, unif, conj, val_func,
             k = l
         indices.extend(range(k+1, dim - d + 1))
         
-        P1 = Matrix(OE, dim, dim)
+        P1 = Matrix(alg_data['OE'], dim - d, dim - d)
         k = 1
         for j in indices:
             P1[j-1, k-1] = 1
@@ -125,21 +127,20 @@ def jordanhermi_split_generalized(A, E, OE, residue_field, unif, conj, val_func,
             k = l
         indices.extend(range(k+1, dim - d + 1))
         
-        P2 = Matrix(OE, dim, dim)
+        P2 = Matrix(alg_data['OE'], dim - d, dim - d)
         k = 1
         for j in indices:
             P2[j-1, k-1] = 1
             k += 1
 
-        # 冪等元 t を用いた基底の局所的な貼り合わせ
         P = (1-t)*P1 + t*P2
         Ptransconj = (1-tconj)*P1.transpose() + tconj*P2.transpose()
 
-        kernbase_oe = (B * P).integer_kernel(OE).basis()
+        kernbase_oe = (B * P).integer_kernel(alg_data['OE']).basis()
         for v in kernbase_oe:
             l = 0
             for x in v:
-                P[l, k-1] = conj(x)
+                P[l, k-1] = alg_data['conj'](x)
                 Ptransconj[k-1, l] = x
                 l += 1
             k += 1
@@ -151,17 +152,109 @@ def jordanhermi_split_generalized(A, E, OE, residue_field, unif, conj, val_func,
         d += rank
         i += 1
 
-    newbasistransconj = Matrix(E, [[conj(newbasis[b, a]) for b in range(dim)] for a in range(dim)])
+    newbasistransconj = Matrix(alg_data['E'], [[alg_data['conj'](newbasis[b, a]) for b in range(dim)] for a in range(dim)])
     return newbasis, newbasistransconj * A * newbasis, dims
 
 
-def jordanhermi_generalized(A, is_split, E, OE, residue_field, unif, conj, val_func, t=None):
+def jordanhermi(A, is_split, alg_data, t=None):
     """
-    一般化されたジョルダン分解の統合ラッパー関数
+    Unified wrapper function for generalized Jordan decomposition of a Hermitian matrix.
+    
+    INPUT:
+        A        : matrix; The Hermitian matrix to be decomposed.
+        is_split : bool; True if the relevant prime ideal splits in the extension E/F.
+        alg_data : dict; Dictionary containing local algebraic structures.
+        t        : element (Optional); The local idempotent approximator.
+        
+    OUTPUT:
+        tuple: (newbasis, gram_mat, dims)
     """
     if is_split:
         if t is None:
             raise ValueError("Split case requires the idempotent approximator 't'.")
-        return jordanhermi_split_generalized(A, E, OE, residue_field, unif, conj, val_func, t)
+        return jordanhermi_split(A, alg_data, t)
     else:
-        return jordanhermi_unr_generalized(A, E, OE, residue_field, unif, conj, val_func)
+        return jordanhermi_unr(A, alg_data)
+
+
+
+def jordanquadZp(A, p, prec=20):
+    """
+    Computes the Jordan decomposition of a symmetric matrix (quadratic form) over Z_p.
+    
+    INPUT:
+        A    : matrix; Symmetric matrix over QQ or Z_p.
+        p    : integer; Prime number.
+        prec : integer; p-adic precision for computation.
+        
+    OUTPUT:
+        newbasis : The basis transformation matrix P.
+        gram_mat : The decomposed Gram matrix (P.transpose() * A * P).
+        dims     : List of ranks for each p^i component.
+    """
+    
+    dim = A.nrows()
+    processed_dim = 0
+    p_exponent = 0
+    dims = []
+    B = copy(A)
+    newbasis = identity_matrix(QQ, dim)
+
+    def get_val(x):
+        try:
+            return x.valuation(p)
+        except TypeError:
+            return x.valuation()
+
+    while processed_dim < dim:
+        while True:
+            if all(get_val(val / p**p_exponent) >= 1 for val in B.list() if val != 0):
+                p_exponent += 1
+                dims.append(0)
+            else:
+                break
+
+        Bmod = matrix(GF(p), B / p**p_exponent)
+        rank = Bmod.rank()
+        dims.append(rank)
+
+        kernbase = Bmod.right_kernel().echelonized_basis()
+        indices = []
+        last_idx = 0
+        for v in kernbase:
+            l = last_idx + 1
+            while v[l-1] == 0:
+                l += 1
+            indices.extend(range(last_idx + 1, l))
+            last_idx = l
+        
+        indices.extend(range(last_idx + 1, dim - processed_dim + 1))
+
+        P = matrix(ZZ, dim - processed_dim, dim - processed_dim)
+        col = 1
+        for j in indices:
+            P[j-1, col-1] = 1
+            col += 1
+
+        try:
+            kernbase_zp = (B * P).integer_kernel().basis()
+        except AttributeError:
+            BP_lifted = matrix(QQ, [[QQ(x.lift()) if hasattr(x, 'lift') else QQ(x) for x in row] for row in (B*P)])
+            kernbase_zp = BP_lifted.integer_kernel().basis()
+
+        for v in kernbase_zp:
+            for row_idx, val in enumerate(v):
+                P[row_idx, col-1] = val
+            col += 1
+
+        if processed_dim + rank < dim:
+            B = (P.transpose() * B * P).submatrix(rank, rank)
+
+        block_P = block_diagonal_matrix(identity_matrix(QQ, processed_dim), P)
+        newbasis = newbasis * block_P
+        
+        processed_dim += rank
+        p_exponent += 1
+
+    gram_mat = newbasis.transpose() * A * newbasis
+    return newbasis, gram_mat, dims

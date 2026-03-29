@@ -9,13 +9,28 @@ def calculate_local_density(Fi, Ei, embed_F_to_E, p_ideal, I_local, N=2):
 
     Empirical brute-force local density over O_E / P^(2N).
     """
-    q = p_ideal.norm()
+    if Fi == QQ:
+        p = p_ideal
+        q = p
+        p_in_E = Ei.ideal(p)
+        unif_F = QQ(p)
+        unif_E = Ei(p)
+    else:
+        q = p_ideal.norm()
+        p_in_E = Ei.ideal([embed_F_to_E(g) for g in p_ideal.gens()])
+        gens_F = p_ideal.gens_reduced()
+        unif_F = None
+        p_sq = p_ideal**2
+        for g in gens_F:
+            if g != 0 and g not in p_sq:
+                unif_F = Fi(g)
+                break
+        if unif_F is None:
+            raise ValueError("Could not find unif_F.")
+        unif_E = embed_F_to_E(unif_F)
 
-    p_in_E = Ei.ideal([embed_F_to_E(g) for g in p_ideal.gens()])
     factored_primes = list(p_in_E.factor())
-
     ramified_primes = [(P, e) for (P, e) in factored_primes if e > 1]
-
     P_ideal = ramified_primes[0][0]
 
     n_dim = sum(n for n, t in I_local)
@@ -24,19 +39,18 @@ def calculate_local_density(Fi, Ei, embed_F_to_E, p_ideal, I_local, N=2):
 
     max_power = 2 * N
 
-    z = Ei.gen()
-    conj_func = Ei.hom([z**-1], Ei)
-
-    gens_F = p_ideal.gens_reduced()
-    unif_F = None
-    p_sq = p_ideal**2
-    for g in gens_F:
-        if g != 0 and g not in p_sq:
-            unif_F = Fi(g)
-            break
-    if unif_F is None:
-        raise ValueError("Could not find unif_F.")
-    unif_E = embed_F_to_E(unif_F)
+    conj_func = None
+    for aut in Ei.automorphisms():
+        if aut(Ei.gen()) != Ei.gen():
+            if Fi == QQ:
+                conj_func = aut
+                break
+            else:
+                if all(aut(embed_F_to_E(g)) == embed_F_to_E(g) for g in Fi.gens()):
+                    conj_func = aut
+                    break
+    if conj_func is None:
+        conj_func = Ei.complex_conjugation()
 
     gens_P = P_ideal.gens_reduced()
     unif_P = None
@@ -74,23 +88,17 @@ def calculate_local_density(Fi, Ei, embed_F_to_E, p_ideal, I_local, N=2):
             blocks.extend([D] * n_i)
 
     B_mat = block_diagonal_matrix(blocks)
-
-    print(f"--- Empirical Counting (N={N}) ---")
     
     k, k_map = Ei.residue_field(P_ideal)
     k_reps = [Ei(k_map.section()(a)) for a in k]
     
     ring_elements = []
-    for coeffs in itertools.product(k_reps, repeat=max_power):
+    for coeffs in product(k_reps, repeat=max_power):
         val = sum(c * (unif_P**j) for j, c in enumerate(coeffs))
         ring_elements.append(OE_mod(val))
 
-    total = len(ring_elements)**(n_dim**2)
-    print(f"|OE_mod| = {len(ring_elements)} (expected {q**max_power})")
-    print(f"Searching over {total} matrices...")
-
     valid_count = 0
-    for matrix_entries in itertools.product(ring_elements, repeat=n_dim*n_dim):
+    for matrix_entries in product(ring_elements, repeat=n_dim*n_dim):
         X = matrix(OE_mod, n_dim, n_dim, matrix_entries)
         X_star = X.apply_map(conj_mod).transpose()
 
