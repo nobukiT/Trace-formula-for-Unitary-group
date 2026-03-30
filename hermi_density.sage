@@ -102,6 +102,7 @@ def hermi_ram2_mass_local_term(Fi, Ei, embed_F_to_E, p_ideal, I):
         q = p_ideal.norm()
         e = p_ideal.ramification_index()
         p_in_E = Ei.ideal([embed_F_to_E(g) for g in p_ideal.gens()])
+    print(e)
     
     mult = sum(int(item[0]) if isinstance(item, (list, tuple)) else int(item) for item in I)
     
@@ -163,6 +164,7 @@ def hermi_ram2_mass_local_term(Fi, Ei, embed_F_to_E, p_ideal, I):
         return mass_local_term
 
     else:
+        print(f"Calculate brute-force local density for {I}")
         mass_local_term = prod([1 - q**(-2*l) for l in range(1, 1 + int(mult // 2))])
         mass_local_term *= q**(mult * sum(i * int(I[i][0]) for i in range(len(I))))
 

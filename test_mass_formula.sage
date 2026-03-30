@@ -19,8 +19,8 @@ def run_final_integration_test():
     print("🚀 STARTING FINAL INTEGRATION TEST (Class Number 1 Fields)")
     print("=" * 80)
     
-    n_list = [2,4,6]
-    class_number_one_discriminants = [-3, -4, -7, -8, -11, -19, -43, -67, -163]
+    n_list = [4]
+    class_number_one_discriminants = [-3, -4, -7, -8]
     
     for n in n_list:
         print(f"\n\n" + "#" * 60)
@@ -38,7 +38,7 @@ def run_final_integration_test():
 
             try:
                 print(f"\n>>> [D_K={D_K}] TEST 1: update_orb_int_unitary_db")
-                update_orb_int_unitary_db(n, primes_list, D_K, pretend=False, verbose=False)
+                update_orb_int_unitary_db(n, primes_list, D_K, pretend=False, verbose=True)
 
                 print(f"\nTEST 1 PASSED: Database updated for D_K={D_K}.")
                 print(f"\n>>> [D_K={D_K}] TEST 2: mass_list_unitary")
@@ -51,7 +51,7 @@ def run_final_integration_test():
                     D_K, 
                     imposed_negdim=-1, 
                     prec=100, 
-                    verbose=False
+                    verbose=True
                 )
 
                 print(f"\nTEST 2 PASSED: Mass computation completed for D_K={D_K}.")

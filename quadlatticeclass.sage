@@ -16,12 +16,8 @@ def quadlattice_oddp_from_hermi_type(p, k, d, mult, I, precomp_trace_matrices, a
   
     for idx, L_i in enumerate(I):
         i = idx - d
-        if isinstance(L_i, (list, tuple)):
-            n_i = L_i[0]
-            disc_type = L_i[1] if len(L_i) > 1 else Mod(0, 2)
-        else:
-            n_i = L_i
-            disc_type = Mod(0, 2)
+        n_i = L_i[0]
+        disc_type = L_i[1] if len(L_i) > 1 else Mod(0, 2)
 
         if i % 2 == 0:
             if n_i > 0:
@@ -82,12 +78,9 @@ def quadlattice_oddp_from_hermi_type(p, k, d, mult, I, precomp_trace_matrices, a
 
     formatted_I = []
     for L_i in I:
-        if isinstance(L_i, (list, tuple)):
-            n_i = int(L_i[0]) if len(L_i) > 0 else 0
-            t_i = int(L_i[1]) if len(L_i) > 1 else 0
-            formatted_I.append([n_i, t_i])
-        else:
-            formatted_I.append([int(L_i), 0])
+        n_i = int(L_i[0]) if len(L_i) > 0 else 0
+        t_i = int(L_i[1]) if len(L_i) > 1 else 0
+        formatted_I.append([n_i, t_i])
 
     q = alg_data['q']
     mass_local_term = hermi_ramoddp_mass_local_term(q, d, mult, formatted_I)
@@ -153,7 +146,7 @@ def quadlattice_2_from_hermi_type(m, D_K, mult, I, precomp_trace_matrices, alg_d
     
     for idx, L_i in enumerate(I):
         i = idx - d
-        n_i = L_i[0] if isinstance(L_i, (list, tuple)) else L_i
+        n_i = L_i[0]
         
         if n_i > 0:
             if i % 2 == 1: 
@@ -234,13 +227,10 @@ def quadlattice_2_from_hermi_type(m, D_K, mult, I, precomp_trace_matrices, alg_d
 
     formatted_I = []
     for L_i in I:
-        if isinstance(L_i, (list, tuple)):
-            n_i = int(L_i[0]) if len(L_i) > 0 else 0
-            eps = int(L_i[1]) if len(L_i) > 1 else 0
-            eta = int(L_i[2]) if len(L_i) > 2 else 0
-            formatted_I.append([n_i, eps, eta])
-        else:
-            formatted_I.append([int(L_i), 0, 0])
+        n_i = int(L_i[0]) if len(L_i) > 0 else 0
+        eps = int(L_i[1]) if len(L_i) > 1 else 0
+        eta = int(L_i[2]) if len(L_i) > 2 else 0
+        formatted_I.append([n_i, eps, eta])
 
     mass_local_term = hermi_ram2_mass_local_term(Fi, Ei, embed_F_to_E, p_ideal, formatted_I)
     

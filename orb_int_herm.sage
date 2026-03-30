@@ -293,7 +293,7 @@ def update_orb_int_unitary_db(n, primes_list, D_K, pretend=False, verbose=False)
                     
                     current_block_val = QQ(0)
                     for item in lattices_in_block:
-                        latt_obj = item[1] if isinstance(item, (list, tuple)) and len(item) > 1 else item
+                        latt_obj = item[1]
                         current_block_val += QQ(latt_obj.mass_local_term)
                     
                     density_at_v *= current_block_val
