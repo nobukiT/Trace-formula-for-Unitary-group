@@ -267,8 +267,7 @@ def enum_hermi(p, m, D_K, mult, maxpower, alg_data):
             p_t_matrices = comp_tracematrices_ram2(maxpower, alg_data)
             for I in formal_types:
                 latt = quadlattice_2_from_hermi_type(m, D_K, mult, I, p_t_matrices, alg_data)
-                if latt[1].type_list[0][1] == Mod(0, 2): 
-                    result.append(latt)
+                result.append(latt)
             return result
         else:
             formal_types = enum_hermi_ramoddp_types(alg_data['d'], alg_data['e'], mult, maxpower)
@@ -276,7 +275,7 @@ def enum_hermi(p, m, D_K, mult, maxpower, alg_data):
                 raise ValueError("Ramified odd case requires 'notnorm' element.")
             p_t_matrices = comp_tracematrices_ramoddp(maxpower, alg_data)
             for I in formal_types:
-                latt = quadlattice_oddp_from_hermi_type(p, k, alg_data['d'], mult, I, p_t_matrices)
+                latt = quadlattice_oddp_from_hermi_type(p, k, alg_data['d'], mult, I, p_t_matrices, alg_data)
                 result.append(latt)
             return result
     else:

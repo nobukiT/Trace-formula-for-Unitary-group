@@ -74,11 +74,11 @@ def mass_global_term_unitary(cc, D_K, prec=100, verbose=False):
         if Fi is None:
             raise ValueError(f"Could not determine Fi for Phi_{m}-block.")
 
-        # Tamagawa number factor
+        # Tamagawa number 
         res *= 2
 
         # L-factor calculation
-        res *= unitary_block_L_product(n, Ei, Fi, verbose)
+        res *= unitary_block_L_product(n, Ei, Fi, prec=prec, verbose=verbose)
 
     return res
 
@@ -171,6 +171,7 @@ def mass_list_unitary(n, primes_list, database, D_K, imposed_negdim=-1, prec=100
         cc_mass = exactify_to_QQ(mass_unitary(n, primes_list, negdim_goal, conj_class, database, D_K, prec, verbose))
         if cc_mass != 0:
             mass_list.append([conj_class, cc_mass])
-            print(f"{conj_class} -> Mass: {cc_mass}")
+            if verbose:
+                print(f"{conj_class} -> Mass: {cc_mass}")
 
     return mass_list

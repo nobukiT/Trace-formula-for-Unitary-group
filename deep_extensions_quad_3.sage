@@ -76,7 +76,8 @@ def invariants_munip_bil_form_3(s_mat):
     # The bilinear form S after transformation
     transformed_s = new_basis.transpose() * s_mat * new_basis
     
-    res_list = [0] * young_tableau[0][0]
+    max_dim = max([r[0] for r in young_tableau]) if young_tableau else 0
+    res_list = [0] * max_dim
     cur_pos = 0
     
     for r_dim, r_mult in young_tableau:

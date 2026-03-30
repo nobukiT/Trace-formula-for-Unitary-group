@@ -200,7 +200,7 @@ def orb_int_unitary(args_list, hermi_latt_db, D_K):
             
         yield args, total_orbital_integral
 
-def update_orb_int_unitary_db(n, primes_list, D_K, pretend=False, verbose=True):
+def update_orb_int_unitary_db(n, primes_list, D_K, pretend=False, verbose=False):
     """
     Populate orb_int_unitary_db with all local orbital integral data needed
     for elliptic finite-order stable conjugacy classes in the unitary setting.

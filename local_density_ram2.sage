@@ -37,7 +37,7 @@ def calculate_local_density(Fi, Ei, embed_F_to_E, p_ideal, I_local, N=2):
     if n_dim == 0:
         return 1
 
-    max_power = 2 * N
+    max_power = N
 
     conj_func = None
     for aut in Ei.automorphisms():
@@ -81,7 +81,7 @@ def calculate_local_density(Fi, Ei, embed_F_to_E, p_ideal, I_local, N=2):
         if type_i % 2 == 0:  # Type II
             if n_i % 2 != 0:
                 raise ValueError("Type II blocks must have even dimension.")
-            H = matrix(OE_mod, 2, 2, [0, scale_mod, scale_mod, 0])
+            H = matrix(OE_mod, 2, 2, [0, scale_mod, conj_mod(scale_mod), 0])
             blocks.extend([H] * (n_i // 2))
         else:  # Type I
             D = matrix(OE_mod, 1, 1, [scale_mod])

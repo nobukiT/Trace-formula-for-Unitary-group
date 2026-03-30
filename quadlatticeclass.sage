@@ -3,7 +3,7 @@ load("hermi_density.sage")
 load("young.sage")
 load("deep_extensions_quad_3.sage")
 
-def quadlattice_oddp_from_hermi_type(p, k, d, mult, I, precomp_trace_matrices):
+def quadlattice_oddp_from_hermi_type(p, k, d, mult, I, precomp_trace_matrices, alg_data):
     K = Qp(p)
     if k > 0:
         comp_mat = companion_matrix(cyclotomic_polynomial(p**k), format='right')
@@ -80,7 +80,18 @@ def quadlattice_oddp_from_hermi_type(p, k, d, mult, I, precomp_trace_matrices):
         type_list.append([r, Mod(0 if disc_issquare == 1 else 1, 2)])
         cur_pos += r
 
-    mass_local_term = hermi_ramoddp_mass_local_term(p, d, mult, I)
+    formatted_I = []
+    for L_i in I:
+        if isinstance(L_i, (list, tuple)):
+            n_i = int(L_i[0]) if len(L_i) > 0 else 0
+            t_i = int(L_i[1]) if len(L_i) > 1 else 0
+            formatted_I.append([n_i, t_i])
+        else:
+            formatted_I.append([int(L_i), 0])
+
+    q = alg_data['q']
+    mass_local_term = hermi_ramoddp_mass_local_term(q, d, mult, formatted_I)
+    
     result = quadlattice_oddp(p, total_dim, type_list, Qpclass, gram_mat, gamma_mat, mass_local_term)
     result.hermi_type = I
     return [disc_isnorm, result]
@@ -112,7 +123,7 @@ class quadlattice_oddp:
         if len(type_list) <= 2:
             self.is_simple = True
             self.reduction_dim = type_list[1][0] if len(type_list) > 1 else 0
-            self.reduction_disc = type_list[1][1] if len(type_list) > 1 else 1
+            self.reduction_disc = type_list[1][1] if len(type_list) > 1 else Mod(0, 2)
             u = type_list[0][0] if len(type_list) > 0 else 0
             red_gamma = modp_matrix(gamma_mat[u:, u:], p)
             self.reduction_young = young_list(red_gamma - 1)
@@ -126,7 +137,6 @@ class quadlattice_oddp:
 def quadlattice_2_from_hermi_type(m, D_K, mult, I, precomp_trace_matrices, alg_data):
     k = Integer(m).valuation(2)
     d = alg_data['d']
-    e = alg_data['e']
     Fi = alg_data['F']
     Ei = alg_data['E']
     embed_F_to_E = alg_data['embed_F_to_E']
@@ -143,34 +153,39 @@ def quadlattice_2_from_hermi_type(m, D_K, mult, I, precomp_trace_matrices, alg_d
     
     for idx, L_i in enumerate(I):
         i = idx - d
-        if L_i[0] > 0:
+        n_i = L_i[0] if isinstance(L_i, (list, tuple)) else L_i
+        
+        if n_i > 0:
             if i % 2 == 1: 
-                if k == 2 and L_i[0] % 2 == 1:
+                if k == 2 and n_i % 2 == 1:
                     disc_is_norm += 1
-                if L_i[1] == 0:
-                    base_diag_gram_mat.extend([precomp_trace_matrices[i + d][0]] * L_i[0])
-                else:
-                    base_diag_gram_mat.extend([precomp_trace_matrices[i + d][0]] * (L_i[0] - 1))
+                if len(L_i) > 1 and L_i[1] != 0:
+                    base_diag_gram_mat.extend([precomp_trace_matrices[i + d][0]] * (n_i - 1))
                     base_diag_gram_mat.append(precomp_trace_matrices[i + d][1])
                     disc_is_norm += 1
+                else:
+                    base_diag_gram_mat.extend([precomp_trace_matrices[i + d][0]] * n_i)
             else:
-                if L_i[1] == 0: 
-                    base_diag_gram_mat.extend([precomp_trace_matrices[i + d][0]] * (L_i[0] // 2))
-                    if k == 2 and L_i[0] % 4 == 2:
+                eps = L_i[1] if len(L_i) > 1 else 0
+                eta = L_i[2] if len(L_i) > 2 else 0
+
+                if eps == 0: 
+                    base_diag_gram_mat.extend([precomp_trace_matrices[i + d][0]] * (n_i // 2))
+                    if k == 2 and n_i % 4 == 2:
                         disc_is_norm += 1
                 else:
-                    base_diag_gram_mat.extend([precomp_trace_matrices[i + d][0]] * (L_i[0] // 2))
-                    if k == 2 and (L_i[0] % 4 in [3, 0]):
+                    base_diag_gram_mat.extend([precomp_trace_matrices[i + d][0]] * (n_i // 2))
+                    if k == 2 and (n_i % 4 in [3, 0]):
                         disc_is_norm += 1
-                    if L_i[0] % 2 == 0:
+                    
+                    if n_i % 2 == 0:
                         base_diag_gram_mat.append(precomp_trace_matrices[i + d][1])
-                    if len(L_i) > 2 and L_i[2] == 0:
+                        
+                    if eta == 0:
                         base_diag_gram_mat.append(precomp_trace_matrices[i + d][1])
-                    elif len(L_i) > 2:
+                    else:
                         base_diag_gram_mat.append(precomp_trace_matrices[i + d][2])
                         disc_is_norm += 1
-                    elif len(L_i) == 2:
-                        base_diag_gram_mat.append(precomp_trace_matrices[i + d][1])
 
     diag_gram_mat = []
     for M in base_diag_gram_mat:
@@ -216,8 +231,19 @@ def quadlattice_2_from_hermi_type(m, D_K, mult, I, precomp_trace_matrices, alg_d
             else:
                 type_list.append([d_size, Mod(1, 2)])
             cur_pos += d_size
-            
-    mass_local_term = hermi_ram2_mass_local_term(Fi, Ei, embed_F_to_E, p_ideal, I)
+
+    formatted_I = []
+    for L_i in I:
+        if isinstance(L_i, (list, tuple)):
+            n_i = int(L_i[0]) if len(L_i) > 0 else 0
+            eps = int(L_i[1]) if len(L_i) > 1 else 0
+            eta = int(L_i[2]) if len(L_i) > 2 else 0
+            formatted_I.append([n_i, eps, eta])
+        else:
+            formatted_I.append([int(L_i), 0, 0])
+
+    mass_local_term = hermi_ram2_mass_local_term(Fi, Ei, embed_F_to_E, p_ideal, formatted_I)
+    
     result = quadlattice_2(total_dim, type_list, Qpclass, gram_mat, gamma_mat, mass_local_term)
     result.hermi_type = I
     return [disc_is_norm, result]

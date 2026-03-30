@@ -82,13 +82,16 @@ class hermilattice_unr:
                 self.reduction_young = []
             else:
                 self.reduction_dim = type_list[1]
-                residue_field_local = GF(q, 'a')
                 sub_gamma = gamma_mat.submatrix(type_list[0], type_list[0])
-                try:
-                    reduced_matrix = matrix(residue_field_local, self.reduction_dim, self.reduction_dim, sub_gamma) - 1
-                except TypeError:
-                    reduced_matrix = matrix(residue_field_local, self.reduction_dim, self.reduction_dim, 
-                                            [residue_field_local(x) for x in sub_gamma.list()]) - 1
+                Ei = gamma_mat.base_ring()
+                if Ei == QQ:
+                    reduce_map = GF(p)
+                else:
+                    P_Ei = Ei.primes_above(p)[0]
+                    reduce_map = Ei.residue_field(P_Ei)
+                    
+                reduced_entries = [reduce_map(x) for x in sub_gamma.list()]
+                reduced_matrix = matrix(reduce_map, self.reduction_dim, self.reduction_dim, reduced_entries) - 1
                 self.reduction_young = young_list(reduced_matrix)
 
     def __str__(self):
