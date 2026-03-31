@@ -1,35 +1,40 @@
 def young_list(M):
     """
-    Calculate the size of Jordan blocks (Young diagram) for a nilpotent matrix M.
-    
+    Return the sizes of the Jordan blocks of a nilpotent matrix M.
+
     INPUT:
-        M -- a square matrix (must be nilpotent)
+        M -- a square nilpotent matrix
 
     OUTPUT:
-        List of integers representing the sizes of the Jordan blocks (a partition).
+        List of integers representing the sizes of the Jordan blocks,
+        in decreasing order.
     """
     if not M.is_square():
         raise ValueError("The matrix must be a square matrix.")
         
-    total_dim = M.nrows()
-    if total_dim == 0:
+    n = M.nrows()
+    if n == 0:
         return []
 
-    partition = []
-    current_nullity = total_dim - M.rank()  # dim(ker(M))
+    columns = []
     prev_nullity = 0
-    
-    # Variable to keep track of the matrix powers
     M_pow = M
-    
-    # Loop until the dimension of the kernel stops increasing
-    while current_nullity > prev_nullity:
-        # This increment forms the length of a "column" in the Young diagram
-        partition.append(current_nullity - prev_nullity)
-        
-        # Compute the nullity for the next power
+
+    while True:
+        current_nullity = n - M_pow.rank()
+        if current_nullity == prev_nullity:
+            break
+        columns.append(current_nullity - prev_nullity)
         prev_nullity = current_nullity
         M_pow *= M
-        current_nullity = total_dim - M_pow.rank()
 
-    return partition
+    blocks = []
+    k = 1
+    while True:
+        count = sum(1 for c in columns if c >= k)
+        if count == 0:
+            break
+        blocks.append(count)
+        k += 1
+
+    return blocks

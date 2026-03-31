@@ -83,7 +83,6 @@ def invariants_munip_bil_form_3(s_mat):
     for r_dim, r_mult in young_tableau:
         if r_dim % 2 == 0:
             # For even-sized Jordan cells, extract the corresponding submatrix to determine the discriminant.
-            # Call the reference matrix generator get_ref_bil_form_munip_3(m) on the fly.
             ref_s_inv = get_ref_bil_form_munip_3(r_dim // 2).inverse()
             q_block_inv = block_diagonal_matrix([ref_s_inv] * r_mult, subdivide=False)
             

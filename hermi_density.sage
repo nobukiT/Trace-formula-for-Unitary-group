@@ -39,7 +39,7 @@ def hermi_ramoddp_mass_local_term(q, d, mult, I):
         A rational number representing the local density.
     """
     # Initial term based on the total dimension
-    if mult % 2 == 0:
+    if Mod(mult,2)==Mod(0,2):
         mass_local_term = q**(mult // 2) * prod([1 - q**(-2*l) for l in range(1, 1 + int(mult // 2))])
     else:
         mass_local_term = prod([1 - q**(-2*l) for l in range(1, int((mult + 1) // 2))])
@@ -65,14 +65,14 @@ def hermi_ramoddp_mass_local_term(q, d, mult, I):
                         
                 for j in range(i + 1, len(I)):
                     n_j = int(I[j][0])  
-                    q_exponent += (j - i) * n_i * n_j // 2
+                    q_exponent += (j - i) * n_i * n_j / 2
         else:
             if n_i > 0:
-                mass_local_term /= prod([1 - q**(-2*l) for l in range(1, 1 + int(n_i // 2))])
-                q_exponent -= n_i // 2
+                mass_local_term /= prod([1 - q**(-2*l) for l in range(1, 1 + int(n_i / 2))])
+                q_exponent -= n_i / 2
                 for j in range(i + 1, len(I)):
                     n_j = int(I[j][0])
-                    q_exponent += (j - i) * n_i * n_j // 2
+                    q_exponent += (j - i) * n_i * n_j / 2
                     
     mass_local_term *= q**q_exponent
     return mass_local_term
@@ -102,7 +102,6 @@ def hermi_ram2_mass_local_term(Fi, Ei, embed_F_to_E, p_ideal, I):
         q = p_ideal.norm()
         e = p_ideal.ramification_index()
         p_in_E = Ei.ideal([embed_F_to_E(g) for g in p_ideal.gens()])
-    print(e)
     
     mult = sum(int(item[0]) if isinstance(item, (list, tuple)) else int(item) for item in I)
     
@@ -132,13 +131,13 @@ def hermi_ram2_mass_local_term(Fi, Ei, embed_F_to_E, p_ideal, I):
                 q_exponent -= n_i
                 if actual_ni > 0:
                     if (i > 0 and I[i-1][1] % 2 == 1) or (i+1 < len(I) and I[i+1][1] % 2 == 1):
-                        mass_local_term /= prod([1 - q**(-2*l) for l in range(1, 1 + int(actual_ni//2))])
+                        mass_local_term /= prod([1 - q**(-2*l) for l in range(1, 1 + n_i)])
                     else:  
-                        mass_local_term /= 2 * prod([1 - q**(-2*l) for l in range(1, int(actual_ni//2))])
+                        mass_local_term /= 2 * prod([1 - q**(-2*l) for l in range(1, n_i)])
                         if I[i][1] % 2 == 0:
-                            mass_local_term /= 1 - q**(-actual_ni//2)
+                            mass_local_term /= 1 - q**(-n_i)
                         else:
-                            mass_local_term /= 1 + q**(-actual_ni//2)
+                            mass_local_term /= 1 + q**(-n_i)
                     for j in range(i+1, len(I)):
                         n_j = int(I[j][0]) 
                         if (j - d) % 2 == 1:
@@ -158,7 +157,7 @@ def hermi_ram2_mass_local_term(Fi, Ei, embed_F_to_E, p_ideal, I):
                     if (j - d) % 2 == 1:
                         q_exponent += (j-i) * n_i * n_j
                     else:
-                        q_exponent += (j-i) // 2 * n_i * n_j
+                        q_exponent += (j-i) / 2 * n_i * n_j
                         
         mass_local_term *= q**q_exponent
         return mass_local_term

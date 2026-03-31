@@ -140,37 +140,6 @@ def enum_with_inv_hermi(p, m, mult, maxpower, D_K, alg_data):
         result[disc_isnorm].append(lattice)
     return result
 
-def orb_int_gl(args, Fi=None):
-    """
-    Engine bridge for General Linear (GL) orbital integrals.
-
-    INPUT:
-        args : list of tuples; each tuple is (p, exponent, multiplicity, max_power_param).
-        Fi   : NumberField (Optional); the base totally real field.
-
-    OUTPUT:
-        list of tuples: Returns a list of (partition, value) pairs.
-    """
-    results = []
-    for p, exponent, multiplicity, max_power_param in args:
-        if Fi is not None and Fi != QQ:
-            P_Fi = Fi.primes_above(p)[0]
-            qv = P_Fi.norm()
-        else:
-            qv = p
-            
-        if exponent == 0:
-            e = 1
-        else:
-            e = p**(exponent - 1) * (p - 1)
-            
-        max_slots = e * max_power_param
-        parts = enum_partitions(multiplicity, max_slots)
-        for I in parts:
-            val = gl_mass_local_term(qv, I)
-            results.append((tuple(I), val))
-    return results
-
 def orb_int_unitary(args_list, hermi_latt_db, D_K):
     """
     Generator that yields the total orbital integral values for unitary cases.
