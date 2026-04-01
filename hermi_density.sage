@@ -93,6 +93,8 @@ def hermi_ram2_mass_local_term(Fi, Ei, embed_F_to_E, p_ideal, I):
     OUTPUT:
         A rational number representing the local mass term (\nu_0^{-1}).
     """
+
+    print(I)
     if Fi == QQ:
         p = p_ideal
         q = p
@@ -119,57 +121,44 @@ def hermi_ram2_mass_local_term(Fi, Ei, embed_F_to_E, p_ideal, I):
         diff_Fi_lifted = Ei.ideal([embed_F_to_E(g) for g in Fi.different().gens()]).valuation(P_ideal)
     d = diff_Ei - diff_Fi_lifted
 
-    if e == 1:
-        mass_local_term = prod([1 - q**(-2*l) for l in range(1, 1 + int(mult//2))])
-        q_exponent = mult if mult % 2 == 0 else 0
+    mass_local_term = prod([1 - q**(-2*l) for l in range(1, 1 + int(mult//2))])
+    q_exponent = mult if mult % 2 == 0 else 0
+    
+    for i in range(len(I)):
+        n_i = int(I[i][0])  
         
-        for i in range(len(I)):
-            n_i = int(I[i][0])  
-            
-            if (i - d) % 2 == 1:
-                actual_ni = 2 * n_i
-                q_exponent -= n_i
-                if actual_ni > 0:
-                    if (i > 0 and I[i-1][1] % 2 == 1) or (i+1 < len(I) and I[i+1][1] % 2 == 1):
-                        mass_local_term /= prod([1 - q**(-2*l) for l in range(1, 1 + n_i)])
-                    else:  
-                        mass_local_term /= 2 * prod([1 - q**(-2*l) for l in range(1, n_i)])
-                        if I[i][1] % 2 == 0:
-                            mass_local_term /= 1 - q**(-n_i)
-                        else:
-                            mass_local_term /= 1 + q**(-n_i)
-                    for j in range(i+1, len(I)):
-                        n_j = int(I[j][0]) 
-                        if (j - d) % 2 == 1:
-                            q_exponent += (j-i) * actual_ni * n_j
-                        else:
-                            q_exponent += (j-i) * n_i * n_j
-            elif n_i > 0:
-                if I[i][1] % 2 == 0:
-                    q_exponent -= n_i
-                    mass_local_term /= prod([1 - q**(-2*l) for l in range(1, 1 + int(n_i//2))])
-                else:
-                    if i+3 > len(I) or I[i+2][1] % 2 == 0:
-                        q_exponent -= 1
-                    mass_local_term /= prod([1 - q**(-2*l) for l in range(1, 1 + int((n_i-1)//2))])
-                for j in range(i+1, len(I)):
-                    n_j = int(I[j][0])
-                    if (j - d) % 2 == 1:
-                        q_exponent += (j-i) * n_i * n_j
+        if (i - d) % 2 == 1:
+            actual_ni = 2 * n_i
+            q_exponent -= n_i
+            if actual_ni > 0:
+                if (i > 0 and I[i-1][1] % 2 == 1) or (i+1 < len(I) and I[i+1][1] % 2 == 1):
+                    mass_local_term /= prod([1 - q**(-2*l) for l in range(1, 1 + n_i)])
+                else:  
+                    mass_local_term /= 2 * prod([1 - q**(-2*l) for l in range(1, n_i)])
+                    if I[i][1] % 2 == 0:
+                        mass_local_term /= 1 - q**(-n_i)
                     else:
-                        q_exponent += (j-i) / 2 * n_i * n_j
-                        
-        mass_local_term *= q**q_exponent
-        return mass_local_term
-
-    else:
-        print(f"Calculate brute-force local density for {I}")
-        mass_local_term = prod([1 - q**(-2*l) for l in range(1, 1 + int(mult // 2))])
-        mass_local_term *= q**(mult * sum(i * int(I[i][0]) for i in range(len(I))))
-
-        if mult % 2 == 0:
-            mass_local_term *= q**(mult * d / 2)
-            
-        mass_local_term /= calculate_local_density(Fi, Ei, embed_F_to_E, p_ideal, I, N=4)
-        
-        return mass_local_term
+                        mass_local_term /= 1 + q**(-n_i)
+                for j in range(i+1, len(I)):
+                    n_j = int(I[j][0]) 
+                    if (j - d) % 2 == 1:
+                        q_exponent += (j-i) * actual_ni * n_j
+                    else:
+                        q_exponent += (j-i) * n_i * n_j
+        elif n_i > 0:
+            if I[i][1] % 2 == 0:
+                q_exponent -= n_i
+                mass_local_term /= prod([1 - q**(-2*l) for l in range(1, 1 + int(n_i//2))])
+            else:
+                if i+3 > len(I) or I[i+2][1] % 2 == 0:
+                    q_exponent -= 1
+                mass_local_term /= prod([1 - q**(-2*l) for l in range(1, 1 + int((n_i-1)//2))])
+            for j in range(i+1, len(I)):
+                n_j = int(I[j][0])
+                if (j - d) % 2 == 1:
+                    q_exponent += (j-i) * n_i * n_j
+                else:
+                    q_exponent += (j-i) / 2 * n_i * n_j
+                    
+    mass_local_term *= q**q_exponent
+    return mass_local_term
