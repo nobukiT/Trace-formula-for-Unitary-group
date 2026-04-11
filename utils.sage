@@ -124,17 +124,20 @@ def tot_ram_sub_conj_classes_unitary(cc, p):
 
 def exactify_to_QQ(x, max_denominator=10^10, tol=1e-12):
     """
-    Convert x to QQ whenever mathematically safe.
+    Convert x to QQ whenever mathematically safe, strictly enforcing max_denominator.
     """
     try:
-        return QQ(x)
+        q = QQ(x)
+        if q.denominator() <= max_denominator:
+            return q
     except (TypeError, ValueError):
         pass
 
     if hasattr(x, "simplify_rational"):
         try:
-            x = x.simplify_rational()
-            return QQ(x)
+            q = QQ(x.simplify_rational())
+            if q.denominator() <= max_denominator:
+                return q
         except (TypeError, ValueError):
             pass
 
@@ -142,8 +145,15 @@ def exactify_to_QQ(x, max_denominator=10^10, tol=1e-12):
         raise ValueError("NaN encountered while exactifying to QQ")
 
     xr = RR(x)
-    q = xr.nearby_rational(max_denominator=max_denominator)
+    
+    try:
+        q_approx = xr.rational_approximation(tol)
+        if q_approx.denominator() <= max_denominator:
+            return q_approx
+    except (TypeError, ValueError, AttributeError):
+        pass
 
+    q = xr.nearby_rational(max_denominator=max_denominator)
     if abs(xr - RR(q)) < tol:
         return QQ(q)
 

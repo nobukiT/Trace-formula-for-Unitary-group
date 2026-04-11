@@ -41,7 +41,11 @@ def append_poss_local_invs_unitary(poss_local_invs, p, sub_cc, orb_int_unitary_d
         combined_pattern_dict = {}
         combined_density = QQ(1)
         for p_map, density in combo:
-            combined_pattern_dict.update(p_map)
+            for k, inv in p_map.items():
+                if k in combined_pattern_dict:
+                    combined_pattern_dict[k] = (combined_pattern_dict[k] + inv) % 2
+                else:
+                    combined_pattern_dict[k] = inv
             combined_density *= density
         
         # Convert dict to a list ordered by global block index

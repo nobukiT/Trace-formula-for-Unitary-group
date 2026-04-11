@@ -17,20 +17,9 @@ if first_run:
     gl_latt_db = {}
     first_run = False
 
-def setup_local_algebraic_data(p, cyclo_order, D_K):
+def setup_local_algebraic_data(p, P_Fi, cyclo_order, D_K):
     """
-    Extracts local algebraic data at a prime p from the global fields (E_i/F_i) 
-    and packages them into a dictionary required for local invariant computations.
-
-    INPUT:
-        p           : integer; the rational prime.
-        cyclo_order : integer; the cyclotomic order m (tame part).
-        D_K         : integer; the discriminant of the global quadratic field.
-
-    OUTPUT:
-        dict: A dictionary containing local algebraic structures and functions:
-            - 'q', 'unif', 'E', 'OE', 'residue_field', 'conj', 'val_func',
-            - 'trace_func', 'basis', 'd', 'e', 'notnorm'.
+    Extracts local algebraic data at a specific prime ideal P_Fi over p from the global fields (E_i/F_i).
     """
     block_data = block_fields_unitary(cyclo_order, D_K, False)
     Ei = block_data["Ei"]
@@ -41,11 +30,10 @@ def setup_local_algebraic_data(p, cyclo_order, D_K):
         q = p
         e_ram = 1
         residue_field = GF(p)
-        P_Fi = p
         unif = p
         p_in_E = Ei.ideal(p)
     else:
-        P_Fi = Fi.primes_above(p)[0]
+        # P_Fi は引数から渡されるため、Fi.primes_above(p)[0] の決め打ちは削除
         q = P_Fi.norm()
         e_ram = P_Fi.ramification_index()
         residue_field = Fi.residue_field(P_Fi)
@@ -141,24 +129,16 @@ def enum_with_inv_hermi(p, m, mult, maxpower, D_K, alg_data):
     return result
 
 def orb_int_unitary(args_list, hermi_latt_db, D_K):
-    """
-    Generator that yields the total orbital integral values for unitary cases.
-
-    INPUT:
-        args_list     : list of tuples; arguments containing (p, cyclo_order, jordan_blocks, partition_tup).
-        hermi_latt_db : dict; database of precomputed Hermitian lattices.
-        D_K           : integer; discriminant parameter of the global field.
-
-    OUTPUT:
-        generator: Yields tuples of (args, total_orbital_integral).
-    """
     for args in args_list:
-        p, cyclo_order, jordan_blocks, partition_tup = args
+        p, v, cyclo_order, jordan_blocks, partition_tup = args
         total_orbital_integral = 1
         max_power_param = len(jordan_blocks) - 1
+        if D_K % p == 0 and max_power_param == 0:
+            max_power_param = 1
+
         for i, (exponent, multiplicity) in enumerate(jordan_blocks):
             complete_order = cyclo_order * (p**exponent)
-            lattice_query_key = (p, complete_order, multiplicity, max_power_param, D_K)
+            lattice_query_key = (v, complete_order, multiplicity, max_power_param, D_K)
             target_partition = partition_tup[i]
             matched_lattices = hermi_latt_db[lattice_query_key][target_partition]
             block_sum = QQ(0)
@@ -234,6 +214,8 @@ def update_orb_int_unitary_db(n, primes_list, D_K, pretend=False, verbose=False)
         is_split = (len(p_in_E.factor()) == 2)
         local_results_map = {}
         max_power_param = len(jordan_blocks) - 1
+        if D_K % p == 0 and max_power_param == 0:
+            max_power_param = 1
 
         # ============================================================
         # GL case (Split)
@@ -277,30 +259,52 @@ def update_orb_int_unitary_db(n, primes_list, D_K, pretend=False, verbose=False)
         # Hermitian case (Inert/Ramified)
         # ============================================================
         else:
-            alg_data = setup_local_algebraic_data(p, cyclo_order, D_K)
-            partition_options_per_block = []
+            primes_v_above_p = [p] if Fi == QQ else Fi.primes_above(p)
+            v_results_list = [] 
 
-            for exponent, multiplicity in jordan_blocks:
-                complete_order = cyclo_order * (p ** exponent)
-                hermi_key = (p, complete_order, multiplicity, max_power_param, D_K)
+            for v in primes_v_above_p:
+                alg_data = setup_local_algebraic_data(p, v, cyclo_order, D_K)
+                partition_options_per_block = []
 
-                if hermi_key not in hermi_latt_db:
-                    hermi_latt_db[hermi_key] = enum_with_inv_hermi(
-                        p, complete_order, multiplicity, max_power_param, D_K, alg_data
-                    )
+                for exponent, multiplicity in jordan_blocks:
+                    complete_order = cyclo_order * (p ** exponent)
+                    hermi_key = (v, complete_order, multiplicity, max_power_param, D_K)
 
-                partition_options_per_block.append(list(hermi_latt_db[hermi_key].keys()))
+                    if hermi_key not in hermi_latt_db:
+                        hermi_latt_db[hermi_key] = enum_with_inv_hermi(
+                            p, complete_order, multiplicity, max_power_param, D_K, alg_data
+                        )
 
-            for partition_combination in itertools.product(*partition_options_per_block):
-                single_arg = (p, cyclo_order, jordan_blocks, partition_combination)
+                    partition_options_per_block.append(list(hermi_latt_db[hermi_key].keys()))
+
+                v_map = {}
+                for partition_combination in itertools.product(*partition_options_per_block):
+                    single_arg = (p, v, cyclo_order, jordan_blocks, partition_combination)
+                    
+                    for res_args, density_value in orb_int_unitary([single_arg], hermi_latt_db, D_K):
+                        if density_value != 0:
+                            inv_key = res_args[4] 
+                            if inv_key in v_map:
+                                v_map[inv_key] += QQ(density_value)
+                            else:
+                                v_map[inv_key] = QQ(density_value)
+                                
+                v_results_list.append(v_map)
+
+            for combo in itertools.product(*[v_map.items() for v_map in v_results_list]):
+                total_density = prod([item[1] for item in combo])
                 
-                for res_args, density_value in orb_int_unitary([single_arg], hermi_latt_db, D_K):
-                    if density_value != 0:
-                        inv_key = res_args[3]
-                        if inv_key in local_results_map:
-                            local_results_map[inv_key] += QQ(density_value)
-                        else:
-                            local_results_map[inv_key] = QQ(density_value)
+                if total_density != 0:
+                    num_blocks = len(jordan_blocks)
+                    combined_inv = tuple(
+                        sum(item[0][i] for item in combo) % 2 
+                        for i in range(num_blocks)
+                    )
+                    
+                    if combined_inv in local_results_map:
+                        local_results_map[combined_inv] += total_density
+                    else:
+                        local_results_map[combined_inv] = total_density
 
         orb_int_unitary_db[db_storage_key] = local_results_map
         if verbose:

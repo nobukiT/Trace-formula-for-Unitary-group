@@ -36,13 +36,9 @@ def relative_L_special_value(Ei, Fi, s, prec=1000, verbose=False):
             hF = QQ(Fi.class_number())
             wF = QQ(Fi.number_of_roots_of_unity())
             RF = Fi.regulator()
-       
 
-        if verbose:
-            print(f"Exact class number formula at s=0:")
-            print(f"  d={d}, hE={hE}, hF={hF}, wE={wE}, wF={wF}, Q={Q}")
-
-        exact_val = (RE/RF) * (hE / hF) * (wF / wE)
+        Q = Ei.hasse_unit_index() if hasattr(Ei, 'hasse_unit_index') else 1
+        exact_val = QQ(2)**(d-1) / QQ(Q) * (hE / hF) * (wF / wE)
         return exact_val
 
     R = RealField(prec)
@@ -93,7 +89,7 @@ def unitary_block_L_product(block_size, Ei, Fi, prec=200, verbose=False):
     Returns an exact rational whenever possible.
     """
     ans = QQ(1)
-    pari_Fi = pari(Fi)
+    pari_Fi = pari(1) if Fi == QQ else pari(Fi.pari_nf())
 
     for j in range(1, block_size + 1):
         s = 1 - j

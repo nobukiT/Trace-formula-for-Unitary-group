@@ -21,7 +21,6 @@ def hermi_unr_mass_local_term(q, dim, I):
             for j in range(i + 1, len(I)):
                 n_j = int(I[j])
                 mass_local_term *= q**((j - i) * n_i * n_j)
-            
     return mass_local_term
 
 def hermi_ramoddp_mass_local_term(q, d, mult, I):
@@ -94,7 +93,6 @@ def hermi_ram2_mass_local_term(Fi, Ei, embed_F_to_E, p_ideal, I):
         A rational number representing the local mass term (\nu_0^{-1}).
     """
 
-    print(I)
     if Fi == QQ:
         p = p_ideal
         q = p
