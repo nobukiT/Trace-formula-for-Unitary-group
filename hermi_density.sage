@@ -1,5 +1,4 @@
 load("young.sage")
-load("local_density_ram2.sage")
 
 
 def hermi_unr_mass_local_term(q, dim, I):
