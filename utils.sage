@@ -122,39 +122,108 @@ def tot_ram_sub_conj_classes_unitary(cc, p):
     return result
 
 
-def exactify_to_QQ(x, max_denominator=10^10, tol=1e-12):
+def exactify_to_QQ(x, max_denominator=10^8, tol=1e-10, prec=200, require_stability=True):
     """
-    Convert x to QQ whenever mathematically safe, strictly enforcing max_denominator.
+    Convert x to QQ as safely as possible.
+
+    Strategy:
+      1. Try exact coercions first.
+      2. Try symbolic rational simplification if available.
+      3. Only then evaluate numerically at high precision.
+      4. Recover a rational only if it is genuinely close and, optionally, stable.
     """
+    # 1. Exact coercion first.
     try:
         q = QQ(x)
         if q.denominator() <= max_denominator:
             return q
+        raise TypeError(
+            "exact rational {} has denominator {} > max_denominator={}".format(
+                q, q.denominator(), max_denominator
+            )
+        )
     except (TypeError, ValueError):
         pass
 
+    # 2. Symbolic simplification, if available.
     if hasattr(x, "simplify_rational"):
         try:
-            q = QQ(x.simplify_rational())
+            y = x.simplify_rational()
+            q = QQ(y)
             if q.denominator() <= max_denominator:
                 return q
         except (TypeError, ValueError):
             pass
 
-    if hasattr(x, "is_NaN") and x.is_NaN():
-        raise ValueError("NaN encountered while exactifying to QQ")
+    if hasattr(x, "full_simplify"):
+        try:
+            y = x.full_simplify()
+            q = QQ(y)
+            if q.denominator() <= max_denominator:
+                return q
+        except (TypeError, ValueError):
+            pass
 
-    xr = RR(x)
-    
+    # 3. High-precision numeric evaluation.
+    RF = RealField(prec)
     try:
-        q_approx = xr.rational_approximation(tol)
-        if q_approx.denominator() <= max_denominator:
-            return q_approx
-    except (TypeError, ValueError, AttributeError):
-        pass
+        xr = RF(x)
+    except (TypeError, ValueError):
+        try:
+            xr = RF(x.n(prec))
+        except Exception as e:
+            raise TypeError(
+                "unable to numerically evaluate {!r} at prec={}".format(x, prec)
+            ) from e
 
+    if xr.is_NaN():
+        raise ValueError("NaN encountered while exactifying to QQ")
+    if xr.is_infinity():
+        raise ValueError("non-finite value encountered while exactifying to QQ")
+
+    # 4. Rational reconstruction with denominator bound.
     q = xr.nearby_rational(max_denominator=max_denominator)
-    if abs(xr - RR(q)) < tol:
-        return QQ(q)
+    err = abs(xr - RF(q))
 
-    raise TypeError(f"unable to safely convert {x!r} to QQ")
+    if err >= RF(tol):
+        raise TypeError(
+            "unable to safely convert {!r} to QQ: best candidate {} has error {} >= tol={}".format(
+                x, q, err, tol
+            )
+        )
+
+    if require_stability:
+        RF2 = RealField(2 * prec)
+        try:
+            xr2 = RF2(x)
+        except (TypeError, ValueError):
+            try:
+                xr2 = RF2(x.n(2 * prec))
+            except Exception as e:
+                raise TypeError(
+                    "unable to re-evaluate {!r} at prec={}".format(x, 2 * prec)
+                ) from e
+
+        if xr2.is_NaN():
+            raise ValueError("NaN encountered while exactifying to QQ at higher precision")
+        if xr2.is_infinity():
+            raise ValueError("non-finite value encountered while exactifying to QQ at higher precision")
+
+        q2 = xr2.nearby_rational(max_denominator=max_denominator)
+        err2 = abs(xr2 - RF2(q))
+
+        if q2 != q:
+            raise TypeError(
+                "rational recovery unstable for {!r}: got {} at prec={}, but {} at prec={}".format(
+                    x, q, prec, q2, 2 * prec
+                )
+            )
+
+        if err2 >= RF2(tol):
+            raise TypeError(
+                "candidate {} is not stable at higher precision: error {} >= tol={}".format(
+                    q, err2, tol
+                )
+            )
+
+    return QQ(q)
