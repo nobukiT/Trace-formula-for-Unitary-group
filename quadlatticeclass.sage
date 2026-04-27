@@ -232,7 +232,12 @@ def quadlattice_2_from_hermi_type(m, D_K, mult, I, precomp_trace_matrices, alg_d
         eta = int(L_i[2]) if len(L_i) > 2 else 0
         formatted_I.append([n_i, eps, eta])
 
-    mass_local_term = hermi_ram2_mass_local_term(Fi, Ei, embed_F_to_E, p_ideal, formatted_I)
+    if Fi == QQ:
+        q = p_ideal
+    else:
+        q = p_ideal.norm()
+
+    mass_local_term = hermi_ram2_mass_local_term(q, d, mult, formatted_I)
     
     result = quadlattice_2(total_dim, type_list, Qpclass, gram_mat, gamma_mat, mass_local_term)
     result.hermi_type = I

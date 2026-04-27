@@ -122,7 +122,7 @@ def tot_ram_sub_conj_classes_unitary(cc, p):
     return result
 
 
-def exactify_to_QQ(x, max_denominator=10^8, tol=1e-10, prec=200, require_stability=True):
+def exactify_to_QQ(x, max_denominator=10^8, tol=1e-20, prec=3000, require_stability=True):
     """
     Convert x to QQ as safely as possible.
 
@@ -132,7 +132,6 @@ def exactify_to_QQ(x, max_denominator=10^8, tol=1e-10, prec=200, require_stabili
       3. Only then evaluate numerically at high precision.
       4. Recover a rational only if it is genuinely close and, optionally, stable.
     """
-    # 1. Exact coercion first.
     try:
         q = QQ(x)
         if q.denominator() <= max_denominator:
@@ -145,7 +144,6 @@ def exactify_to_QQ(x, max_denominator=10^8, tol=1e-10, prec=200, require_stabili
     except (TypeError, ValueError):
         pass
 
-    # 2. Symbolic simplification, if available.
     if hasattr(x, "simplify_rational"):
         try:
             y = x.simplify_rational()
@@ -164,7 +162,6 @@ def exactify_to_QQ(x, max_denominator=10^8, tol=1e-10, prec=200, require_stabili
         except (TypeError, ValueError):
             pass
 
-    # 3. High-precision numeric evaluation.
     RF = RealField(prec)
     try:
         xr = RF(x)
@@ -181,7 +178,6 @@ def exactify_to_QQ(x, max_denominator=10^8, tol=1e-10, prec=200, require_stabili
     if xr.is_infinity():
         raise ValueError("non-finite value encountered while exactifying to QQ")
 
-    # 4. Rational reconstruction with denominator bound.
     q = xr.nearby_rational(max_denominator=max_denominator)
     err = abs(xr - RF(q))
 

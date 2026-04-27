@@ -54,7 +54,7 @@ def append_poss_local_invs_unitary(poss_local_invs, p, sub_cc, orb_int_unitary_d
     
     return True
 
-def mass_global_term_unitary(cc, D_K, prec=100, verbose=False):
+def mass_global_term_unitary(cc, D_K, prec=3000, verbose=False):
     """
     Computes the product of global factors (Tamagawa number, L-values) for a unitary centralizer.
 
@@ -86,7 +86,7 @@ def mass_global_term_unitary(cc, D_K, prec=100, verbose=False):
 
     return res
 
-def mass_unitary(n, primes_list, negdim_goal, cc, database, D_K, prec=100, verbose=False):
+def mass_unitary(n, primes_list, negdim_goal, cc, database, D_K, prec=3000, verbose=False):
     """
     Computes the total mass for a single stable conjugacy class.
 
@@ -149,7 +149,7 @@ def mass_unitary(n, primes_list, negdim_goal, cc, database, D_K, prec=100, verbo
     global_factor = mass_global_term_unitary(cc, D_K, prec=prec, verbose=verbose)
     return total_mass * global_factor
 
-def mass_list_unitary(n, primes_list, database, D_K, imposed_negdim=-1, prec=100, verbose=False):
+def mass_list_unitary(n, primes_list, database, D_K, imposed_negdim=-1, prec=3000, verbose=False):
     """
     Main entry point for calculating the mass list of a unitary group.
 

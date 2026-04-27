@@ -57,7 +57,7 @@ def calc_weights(sigma, a, n, k_weights):
     return tuple(mu), nu
 
 
-def cc_eigenvalues(cc, prec=200):
+def cc_eigenvalues(cc, prec=3000):
     """
     Return the eigenvalues over ComplexField(prec) for a stable conjugacy class cc.
 
@@ -106,7 +106,7 @@ def fix_weight_and_get_sign(mu):
     return new_mu, sgn
 
 
-def trace_gamma_V_mu(cc, mu, prec=200):
+def trace_gamma_V_mu(cc, mu, prec=3000):
     """
     Compute tr(gamma | V_mu) using the Weyl character formula.
     """
@@ -148,7 +148,7 @@ def trace_gamma_V_mu(cc, mu, prec=200):
     return exactify_to_QQ(sgn * val.real(), prec=max(prec, 300))
 
 
-def t_ell_unitary(n_a, D_K, primes_list, database, imposed_negdim, mu, prec=200, verbose=False):
+def t_ell_unitary(n_a, D_K, primes_list, database, imposed_negdim, mu, prec=3000, verbose=False):
     """
     Compute T_ell(U(V_a), mu) by summing over the mass list for U(V_a).
     """
@@ -170,10 +170,10 @@ def t_ell_unitary(n_a, D_K, primes_list, database, imposed_negdim, mu, prec=200,
         tr = trace_gamma_V_mu(cc, mu, prec=prec)
         res += exactify_to_QQ(mass, prec=max(prec, 300)) * tr
 
-    return exactify_to_QQ(res, prec=max(prec, 300))
+    return res
 
 
-def t_ell_res_gl1_via_u1(nu_i, D_K, primes_list, database, prec=200, verbose=False, cache=None):
+def t_ell_res_gl1_via_u1(nu_i, D_K, primes_list, database, prec=3000, verbose=False, cache=None):
     """
     Compute T_ell(Res_{E/Q} GL_1, nu_i) via the identification
 
@@ -229,7 +229,7 @@ def permutation_sign(sigma):
     return (-1) ** inv_count
 
 
-def T_geom(p, q, k_weights, D_K, primes_list, database, prec=200, verbose=False):
+def T_geom(p, q, k_weights, D_K, primes_list, database, prec=3000, verbose=False):
     """
     Compute the geometric side contribution according to Proposition
     'parabolic_contribution_Ma' in the paper:

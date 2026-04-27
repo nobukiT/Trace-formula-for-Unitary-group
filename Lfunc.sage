@@ -1,7 +1,7 @@
 
 load("utils.sage")
 
-def relative_L_special_value(Ei, Fi, s, prec=1000, verbose=False):
+def relative_L_special_value(Ei, Fi, s, prec=3000, verbose=True):
     """
     Return L(E/F, 1-j) for odd j >= 1, assuming E/F is a CM extension.
 
@@ -52,12 +52,12 @@ def relative_L_special_value(Ei, Fi, s, prec=1000, verbose=False):
     deriv_order = d 
 
     if Fi == QQ:
-        val_E_deriv = pari.lfun(nf_E, s_val, deriv_order)
-        val_F_deriv = pari.lfun(1, s_val, deriv_order)
+        val_E_deriv = pari.lfun(nf_E, s_val, deriv_order, precision=prec)
+        val_F_deriv = pari.lfun(1, s_val, deriv_order, precision=prec)
     else:
         nf_F = Fi.pari_nf()
-        val_E_deriv = pari.lfun(nf_E, s_val, deriv_order)
-        val_F_deriv = pari.lfun(nf_F, s_val, deriv_order)
+        val_E_deriv = pari.lfun(nf_E, s_val, deriv_order, precision=prec)
+        val_F_deriv = pari.lfun(nf_F, s_val, deriv_order, precision=prec)
 
     if val_F_deriv == 0:
         raise ZeroDivisionError(f"{deriv_order}-th derivative of zeta_F is zero at s={s}")
@@ -76,7 +76,7 @@ def relative_L_special_value(Ei, Fi, s, prec=1000, verbose=False):
     return q
 
 
-def unitary_block_L_product(block_size, Ei, Fi, prec=200, verbose=False):
+def unitary_block_L_product(block_size, Ei, Fi, prec=3000, verbose=True):
     """
     Compute
 
@@ -96,7 +96,7 @@ def unitary_block_L_product(block_size, Ei, Fi, prec=200, verbose=False):
 
         if j % 2 == 0:
             # even j -> trivial character
-            raw_term = pari.lfun(pari_Fi, s)
+            raw_term = pari.lfun(pari_Fi, s, precision=prec)
             term = exactify_to_QQ(raw_term)
 
             if verbose:

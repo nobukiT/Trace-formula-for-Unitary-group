@@ -37,12 +37,9 @@ def hermi_ramoddp_mass_local_term(q, d, mult, I):
         A rational number representing the local density.
     """
     # Initial term based on the total dimension
-    if Mod(mult,2)==Mod(0,2):
-        mass_local_term = q**(mult // 2) * prod([1 - q**(-2*l) for l in range(1, 1 + int(mult // 2))])
-    else:
-        mass_local_term = prod([1 - q**(-2*l) for l in range(1, int((mult + 1) // 2))])
-        
-    q_exponent = 0
+    mass_local_term = prod([1 - q**(-2*l) for l in range(1, int((mult + 1) // 2))])
+    q_exponent = d * (mult // 2) if mult % 2 == 0 else 0
+    
     for i in range(len(I)):
         n_i = int(I[i][0])
         
@@ -74,52 +71,24 @@ def hermi_ramoddp_mass_local_term(q, d, mult, I):
                     
     mass_local_term *= q**q_exponent
     return mass_local_term
-
-def hermi_ram2_mass_local_term(Fi, Ei, embed_F_to_E, p_ideal, I):
+def hermi_ram2_mass_local_term(q, d, mult, I):
     """
     Calculate the local mass term (inverse of Haar measure \nu_0) of a ramified 
     Hermitian lattice at a prime with residue characteristic 2.
 
     INPUT:
-        Fi           : NumberField; Base totally real field
-        Ei           : NumberField; CM field (quadratic extension of Fi)
-        embed_F_to_E : Homomorphism; embedding from Fi to Ei
-        p_ideal      : Prime ideal of Fi (assumed to be above 2)
-        I            : list of tuples; lattice invariants 
+        q    : integer; order of the residue field
+        d    : integer; valuation of the different of the extension E/F
+        mult : integer; total multiplicity (dimension) of the lattice
+        I    : list of tuples; lattice invariants 
                        (e.g., [n_i, type_i, ...] where n_i is dimension)
 
     OUTPUT:
         A rational number representing the local mass term (\nu_0^{-1}).
     """
 
-    if Fi == QQ:
-        p = p_ideal
-        q = p
-        e = 1
-        p_in_E = Ei.ideal(p)
-    else:
-        q = p_ideal.norm()
-        e = p_ideal.ramification_index()
-        p_in_E = Ei.ideal([embed_F_to_E(g) for g in p_ideal.gens()])
-    
-    mult = sum(int(item[0]) if isinstance(item, (list, tuple)) else int(item) for item in I)
-    
-    ramified_primes = [(P, e_idx) for (P, e_idx) in p_in_E.factor() if e_idx > 1]
-    
-    if not ramified_primes:
-        raise ValueError(f"Prime p is unramified in Ei. Cannot use ramified mass term formula. Factorization: {p_in_E.factor()}")
-        
-    P_ideal = ramified_primes[0][0]
-    
-    diff_Ei = Ei.different().valuation(P_ideal)
-    if Fi == QQ:
-        diff_Fi_lifted = 0
-    else:
-        diff_Fi_lifted = Ei.ideal([embed_F_to_E(g) for g in Fi.different().gens()]).valuation(P_ideal)
-    d = diff_Ei - diff_Fi_lifted
-
     mass_local_term = prod([1 - q**(-2*l) for l in range(1, 1 + int(mult//2))])
-    q_exponent = mult if mult % 2 == 0 else 0
+    q_exponent = d * (mult // 2) if mult % 2 == 0 else 0
     
     for i in range(len(I)):
         n_i = int(I[i][0])  
